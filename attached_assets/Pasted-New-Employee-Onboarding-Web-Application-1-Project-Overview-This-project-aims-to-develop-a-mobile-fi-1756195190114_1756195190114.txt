@@ -1,0 +1,137 @@
+New Employee Onboarding Web Application
+1. Project Overview
+This project aims to develop a mobile-first web application on the Replit platform to streamline the onboarding process for new employees. The application will feature a distinct admin panel for managing users and content, and a user-facing interface for new hires to access essential information and training materials. The main page will feature a designated company image as its background.
+
+2. Core Technologies & Platform
+Platform: Replit
+
+Frontend: HTML, CSS, JavaScript (A framework like React or Vue.js is recommended for managing state and UI components).
+
+Backend: Node.js with a framework like Express.js for handling API requests and server logic.
+
+Database: A simple database solution available on Replit, such as Replit DB (a key-value store) or SQLite for structured data.
+
+Design: Mobile-First Responsive Design.
+
+3. Admin-Side Specifications
+The admin side is a secure area for managing new employee accounts and their onboarding curriculum.
+
+3.1 Admin Authentication
+A secure login system for administrators (can be a simple hardcoded username/password for the initial version).
+
+3.2 User Management Dashboard
+This dashboard will allow admins to perform CRUD (Create, Read, Update, Delete) operations for new employee accounts.
+
+Register New User (Create):
+A form to add a new employee with the following fields:
+
+userName (Data type: String, for Korean name, to be used as the login ID)
+
+userPassword (Data type: String, to store the last 4 digits of the phone number for login)
+
+email (Data type: String, must be a valid email format)
+
+buddyName (Data type: String, name of the assigned mentor/buddy)
+
+lockerNumber (Data type: String or Integer)
+
+laptopInfo (Data type: String, e.g., "MacBook Pro 14, Asset #12345")
+
+View & Manage Users (Read, Update, Delete):
+
+A table or list view displaying all registered new employees.
+
+Each entry should show key details (userName, email).
+
+Provide options next to each user to Edit their details or Delete their account.
+
+3.3 Onboarding Content Management Dashboard
+This dashboard allows admins to manage the educational modules that appear as icons on the user's main page.
+
+Create New Content Icon (Create):
+A form to add a new educational module with the following fields:
+
+iconTitle (Data type: String, e.g., "Company History Video")
+
+iconImage (Data type: File Upload or URL, the visual representation of the icon)
+
+contentType (Data type: Dropdown/Selector with options: Link, Video, Image, PDF)
+
+contentSource (Data type: String or File Upload):
+
+If contentType is Link: An external URL.
+
+If contentType is Video: A URL to the video (e.g., YouTube, Vimeo) or a file upload.
+
+If contentType is Image: A file upload.
+
+If contentType is PDF: A file upload.
+
+displayOrder (Data type: Integer, to control the sequence of icons on the user page).
+
+Manage Content Icons (Read, Update, Delete):
+
+A list or grid view showing all created content icons.
+
+Each entry should display its iconTitle and contentType.
+
+Provide options next to each icon to Edit its details or Delete it from the main page.
+
+4. User-Side (New Employee) Specifications
+The user side is the mobile-first interface for the new employee.
+
+4.1 Login Page
+The page should prominently feature the main background image.
+
+Two input fields:
+
+Name (placeholder: "이름을 입력하세요" / "Enter your name")
+
+Phone Number Suffix (placeholder: "휴대폰 번호 뒷 4자리" / "Last 4 digits of your phone number")
+
+A "Login" button.
+
+Authentication logic: The system will validate the Name (userName) and Phone Number Suffix (userPassword) against the database records.
+
+4.2 Main Dashboard / Home Page
+This page is displayed after a successful login.
+
+Background: The specified background image should be visible.
+
+Personal Information Display:
+A dedicated section, clearly visible, that shows the logged-in user's information:
+
+Email: user.email
+
+Laptop Info: user.laptopInfo
+
+Your Buddy: user.buddyName
+
+Locker #: user.lockerNumber
+
+Onboarding Curriculum Icons:
+
+A grid or a row of clickable icons based on the content created by the admin.
+
+Each icon should display its iconImage and iconTitle.
+
+The icons should be arranged according to the displayOrder set by the admin.
+
+4.3 Content Viewing Page
+Interaction: When a user clicks on an icon, the application will open a new view or modal to display the content.
+
+Content Display Logic:
+
+Link: The application should redirect the user to the specified URL in a new browser tab (target="_blank").
+
+Video: The application should display an embedded video player.
+
+Image: The application should display the image, optimized for mobile viewing.
+
+PDF: The application should embed a PDF viewer or provide a link to open the PDF.
+
+Navigation:
+
+A clearly visible "Back" or "Return to Main" button must be present on this page.
+
+Clicking this button will close the content view and return the user to their Main Dashboard.
