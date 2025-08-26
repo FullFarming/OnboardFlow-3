@@ -1,0 +1,191 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
+import { insertEmployeeSchema, insertContentIconSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Configure multer for file uploads
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  dest: uploadDir,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  setupAuth(app);
+
+  // Employee management routes
+  app.get("/api/employees", async (req, res) => {
+    try {
+      const employees = await storage.getAllEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      res.status(500).json({ error: "Failed to fetch employees" });
+    }
+  });
+
+  app.post("/api/employees", async (req, res) => {
+    try {
+      const validatedData = insertEmployeeSchema.parse(req.body);
+      const employee = await storage.createEmployee(validatedData);
+      res.status(201).json(employee);
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      res.status(400).json({ error: "Failed to create employee" });
+    }
+  });
+
+  app.put("/api/employees/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertEmployeeSchema.partial().parse(req.body);
+      const employee = await storage.updateEmployee(id, validatedData);
+      res.json(employee);
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      res.status(400).json({ error: "Failed to update employee" });
+    }
+  });
+
+  app.delete("/api/employees/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteEmployee(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      res.status(400).json({ error: "Failed to delete employee" });
+    }
+  });
+
+  // Employee login route
+  app.post("/api/employee-login", async (req, res) => {
+    try {
+      const { userName, userPassword } = req.body;
+      const employee = await storage.getEmployeeByUserName(userName);
+      
+      if (!employee || employee.userPassword !== userPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      res.json(employee);
+    } catch (error) {
+      console.error("Error during employee login:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Content icon management routes
+  app.get("/api/content-icons", async (req, res) => {
+    try {
+      const contentIcons = await storage.getAllContentIcons();
+      res.json(contentIcons);
+    } catch (error) {
+      console.error("Error fetching content icons:", error);
+      res.status(500).json({ error: "Failed to fetch content icons" });
+    }
+  });
+
+  app.post("/api/content-icons", upload.fields([
+    { name: 'iconImage', maxCount: 1 },
+    { name: 'contentFile', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const iconImageFile = files?.iconImage?.[0];
+      const contentFile = files?.contentFile?.[0];
+      
+      const contentIconData = {
+        iconTitle: req.body.iconTitle,
+        contentType: req.body.contentType,
+        contentSource: contentFile ? `/uploads/${contentFile.filename}` : req.body.contentSource,
+        displayOrder: parseInt(req.body.displayOrder),
+        iconImage: iconImageFile ? `/uploads/${iconImageFile.filename}` : req.body.iconImage,
+      };
+
+      const validatedData = insertContentIconSchema.parse(contentIconData);
+      const contentIcon = await storage.createContentIcon(validatedData);
+      res.status(201).json(contentIcon);
+    } catch (error) {
+      console.error("Error creating content icon:", error);
+      res.status(400).json({ error: "Failed to create content icon" });
+    }
+  });
+
+  app.put("/api/content-icons/:id", upload.fields([
+    { name: 'iconImage', maxCount: 1 },
+    { name: 'contentFile', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const iconImageFile = files?.iconImage?.[0];
+      const contentFile = files?.contentFile?.[0];
+      
+      const updateData: any = {
+        iconTitle: req.body.iconTitle,
+        contentType: req.body.contentType,
+        displayOrder: req.body.displayOrder ? parseInt(req.body.displayOrder) : undefined,
+      };
+
+      if (contentFile) {
+        updateData.contentSource = `/uploads/${contentFile.filename}`;
+      } else if (req.body.contentSource) {
+        updateData.contentSource = req.body.contentSource;
+      }
+
+      if (iconImageFile) {
+        updateData.iconImage = `/uploads/${iconImageFile.filename}`;
+      } else if (req.body.iconImage) {
+        updateData.iconImage = req.body.iconImage;
+      }
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
+      const validatedData = insertContentIconSchema.partial().parse(updateData);
+      const contentIcon = await storage.updateContentIcon(id, validatedData);
+      res.json(contentIcon);
+    } catch (error) {
+      console.error("Error updating content icon:", error);
+      res.status(400).json({ error: "Failed to update content icon" });
+    }
+  });
+
+  app.delete("/api/content-icons/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteContentIcon(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting content icon:", error);
+      res.status(400).json({ error: "Failed to delete content icon" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', (req, res, next) => {
+    const filePath = path.join(uploadDir, req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ error: "File not found" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
