@@ -72,7 +72,7 @@ export default function UserDashboard() {
   return (
     <div 
       className="min-h-screen hero-bg"
-      style={{ backgroundImage: `url(${cwKoreaBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      style={{ backgroundImage: `url(${cwKoreaBg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
     >
       {/* Header */}
       <header className="bg-white bg-opacity-95 backdrop-blur-sm shadow-sm">
