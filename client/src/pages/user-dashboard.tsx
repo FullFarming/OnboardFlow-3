@@ -243,7 +243,7 @@ export default function UserDashboard() {
               <div className="flex items-start space-x-3 p-2 bg-gray-50 rounded-lg">
                 <Laptop className="h-4 w-4 brand-blue mt-1" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-gray-600">노트북 정보</p>
+                  <p className="text-xs text-gray-600">임시pw</p>
                   <p className="font-medium text-sm" data-testid="text-user-laptop">{currentEmployee.laptopInfo}</p>
                 </div>
               </div>

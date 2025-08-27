@@ -252,7 +252,7 @@ export default function AdminDashboard() {
                       placeholder=""
                       data-testid="input-laptop-info"
                     />
-                    <Label className="form-label">노트북 정보</Label>
+                    <Label className="form-label">임시pw</Label>
                   </div>
                   <div className="md:col-span-2">
                     <Button
