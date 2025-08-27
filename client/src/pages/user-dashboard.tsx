@@ -190,74 +190,75 @@ export default function UserDashboard() {
       className="min-h-screen hero-bg pb-20"
       style={{ backgroundImage: `url(${dashboardBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
     >
-      {/* Header */}
-      <header className="bg-white bg-opacity-95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
+      {/* Mobile Header */}
+      <header className="bg-white bg-opacity-95 backdrop-blur-sm shadow-sm sticky top-0 z-50">
+        <div className="px-3 py-3">
+          <div className="flex flex-col space-y-3">
+            <div className="flex justify-between items-center">
               <img 
                 src={cwLogo} 
                 alt="C&W Korea Logo" 
-                className="h-12 w-auto"
+                className="h-8 w-auto"
                 data-testid="img-cw-logo"
               />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900" data-testid="text-welcome-message">
-                  안녕하세요, <span data-testid="text-user-name">{currentEmployee.userName}</span>님!
-                </h1>
-                <p className="text-sm text-gray-600">C&W Korea 온보딩에 오신 것을 환영합니다</p>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleLogout}
+                className="text-gray-500 hover:text-gray-700 p-2"
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700"
-              data-testid="button-logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900" data-testid="text-welcome-message">
+                안녕하세요, <span data-testid="text-user-name">{currentEmployee.userName}</span>님!
+              </h1>
+              <p className="text-xs text-gray-600">C&W Korea 온보딩에 오신 것을 환영합니다</p>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Mobile Content */}
+      <div className="px-3 py-4">
         {/* Personal Information Card */}
-        <Card className="glass-card mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 brand-navy">
-              <Users className="h-5 w-5" />
+        <Card className="glass-card mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 brand-navy text-base">
+              <Users className="h-4 w-4" />
               개인 정보
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center space-x-3">
-                <Inbox className="h-5 w-5 brand-blue" />
-                <div>
-                  <p className="text-sm text-gray-600">이메일</p>
-                  <p className="font-medium" data-testid="text-user-email">{currentEmployee.email}</p>
+          <CardContent className="pt-0">
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3 p-2 bg-gray-50 rounded-lg">
+                <Inbox className="h-4 w-4 brand-blue mt-1" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-600">이메일</p>
+                  <p className="font-medium text-sm break-all" data-testid="text-user-email">{currentEmployee.email}</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Laptop className="h-5 w-5 brand-blue" />
-                <div>
-                  <p className="text-sm text-gray-600">노트북 정보</p>
-                  <p className="font-medium" data-testid="text-user-laptop">{currentEmployee.laptopInfo}</p>
+              <div className="flex items-start space-x-3 p-2 bg-gray-50 rounded-lg">
+                <Laptop className="h-4 w-4 brand-blue mt-1" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-600">노트북 정보</p>
+                  <p className="font-medium text-sm" data-testid="text-user-laptop">{currentEmployee.laptopInfo}</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Users className="h-5 w-5 brand-blue" />
-                <div>
-                  <p className="text-sm text-gray-600">Your Buddy</p>
-                  <p className="font-medium" data-testid="text-user-buddy">{currentEmployee.buddyName}</p>
+              <div className="flex items-start space-x-3 p-2 bg-gray-50 rounded-lg">
+                <Users className="h-4 w-4 brand-blue mt-1" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-600">Your Buddy</p>
+                  <p className="font-medium text-sm" data-testid="text-user-buddy">{currentEmployee.buddyName}</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Key className="h-5 w-5 brand-blue" />
-                <div>
-                  <p className="text-sm text-gray-600">사물함 번호</p>
-                  <p className="font-medium" data-testid="text-user-locker">{currentEmployee.lockerNumber}</p>
+              <div className="flex items-start space-x-3 p-2 bg-gray-50 rounded-lg">
+                <Key className="h-4 w-4 brand-blue mt-1" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-600">사물함 번호</p>
+                  <p className="font-medium text-sm" data-testid="text-user-locker">{currentEmployee.lockerNumber}</p>
                 </div>
               </div>
             </div>
@@ -265,74 +266,102 @@ export default function UserDashboard() {
         </Card>
 
 
+        {/* Onboarding Progress */}
+        {progressSummary && (
+          <Card className="glass-card mb-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 brand-navy text-base">
+                <Trophy className="h-4 w-4" />
+                온보딩 진행률
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">완료도</span>
+                  <span className="text-sm font-bold text-blue-600" data-testid="text-progress-percentage">
+                    {Math.min(progressSummary.completed, progressSummary.total)} / {progressSummary.total} ({Math.min(progressSummary.percentage, 100)}%)
+                  </span>
+                </div>
+                <Progress 
+                  value={Math.min(progressSummary.percentage, 100)} 
+                  className="w-full h-3" 
+                  data-testid="progress-bar"
+                />
+                <p className="text-xs text-gray-600 text-center">
+                  {progressSummary.completed >= progressSummary.total ? "🎉 모든 온보딩을 완료했습니다!" : "온보딩을 계속 진행해주세요"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Onboarding Curriculum */}
         <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 brand-navy">
-              <GraduationCap className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 brand-navy text-base">
+              <GraduationCap className="h-4 w-4" />
               온보딩 커리큘럼
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {contentIcons.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-6 text-gray-500 text-sm">
                 온보딩 콘텐츠가 준비 중입니다.
               </div>
             ) : (
-              <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6" data-testid="content-grid">
-                {contentIcons.map((content, index) => {
+              <div className="grid grid-cols-3 gap-2" data-testid="content-grid">
+                {contentIcons.map((content) => {
                   const isCompleted = isContentCompleted(content.id);
                   return (
-                    <div key={content.id} className="flex items-center">
-                      <div
-                        className="content-icon cursor-pointer group relative"
-                        onClick={(e) => handleContentClick(content, e)}
-                        onContextMenu={(e) => handleContentClick(content, e)}
-                        onDoubleClick={(e) => {
-                          e.preventDefault();
-                          if (currentEmployee) {
-                            toggleCompletionMutation.mutate({
-                              contentId: content.id,
-                              employeeId: currentEmployee.id,
-                            });
-                          }
-                        }}
-                        data-testid={`content-icon-${content.id}`}
-                        title="더블클릭하여 완료 상태 변경"
-                      >
-                        <div className={`bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105 ${isCompleted ? 'ring-2 ring-green-500' : ''}`}>
-                          <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden relative`}>
+                    <div
+                      key={content.id}
+                      className="cursor-pointer group relative"
+                      onClick={(e) => handleContentClick(content, e)}
+                      onContextMenu={(e) => handleContentClick(content, e)}
+                      onDoubleClick={(e) => {
+                        e.preventDefault();
+                        if (currentEmployee) {
+                          toggleCompletionMutation.mutate({
+                            contentId: content.id,
+                            employeeId: currentEmployee.id,
+                          });
+                        }
+                      }}
+                      data-testid={`content-icon-${content.id}`}
+                      title="더블클릭하여 완료 상태 변경"
+                    >
+                      <div className={`bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-200 ${isCompleted ? 'ring-2 ring-green-500' : ''}`}>
+                        <div className="relative flex justify-center mb-2">
+                          <div className={`w-16 h-16 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-lg flex items-center justify-center text-2xl overflow-hidden relative`}>
                             {content.iconImage ? (
                               <img 
                                 src={content.iconImage.startsWith('/uploads') ? content.iconImage : content.iconImage.startsWith('http') ? content.iconImage : `/uploads/${content.iconImage}`} 
                                 alt={content.iconTitle} 
-                                className="w-full h-full object-cover rounded-xl"
+                                className="w-full h-full object-cover rounded-lg"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.style.display = 'none';
                                   // Show fallback icon instead
                                   const parent = target.parentElement!;
-                                  parent.innerHTML = `<span class="text-4xl">${getContentTypeIcon(content.contentType)}</span>`;
+                                  parent.innerHTML = `<span class="text-2xl text-white">${getContentTypeIcon(content.contentType)}</span>`;
                                   parent.className = parent.className.replace('bg-transparent', getContentTypeColor(content.contentType));
                                 }}
                               />
                             ) : (
-                              getContentTypeIcon(content.contentType)
-                            )}
-                            {isCompleted && (
-                              <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1">
-                                <CheckCircle2 className="h-4 w-4 text-white" />
-                              </div>
+                              <span className="text-white">{getContentTypeIcon(content.contentType)}</span>
                             )}
                           </div>
-                          <h3 className={`text-sm font-medium text-center ${isCompleted ? 'text-green-700' : 'text-gray-900'}`} data-testid={`text-content-title-${content.id}`}>
-                            {content.iconTitle}
-                          </h3>
+                          {isCompleted && (
+                            <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            </div>
+                          )}
                         </div>
+                        <h3 className={`text-xs font-medium text-center leading-tight ${isCompleted ? 'text-green-700' : 'text-gray-900'}`} data-testid={`text-content-title-${content.id}`}>
+                          {content.iconTitle}
+                        </h3>
                       </div>
-                      {index < contentIcons.length - 1 && (
-                        <ChevronRight className={`h-6 w-6 mx-2 flex-shrink-0 ${isCompleted ? 'text-green-500' : 'text-gray-400'}`} />
-                      )}
                     </div>
                   );
                 })}
@@ -342,18 +371,18 @@ export default function UserDashboard() {
         </Card>
       </div>
 
-      {/* Gamified EXP Bar - Fixed at bottom */}
+      {/* Mobile EXP Bar - Fixed at bottom */}
       {progressSummary && (
         <div className="fixed bottom-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 shadow-lg z-50">
-          <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="px-3 py-2">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">온보딩 진행률</span>
-              <span className="text-sm font-bold text-blue-600">
-                EXP: {progressSummary.completed} / {progressSummary.total} ({Math.min(100, Math.round(progressSummary.percentage))}%)
+              <span className="text-xs font-medium text-gray-700">온보딩 진행률</span>
+              <span className="text-xs font-bold text-blue-600">
+                EXP: {Math.min(progressSummary.completed, progressSummary.total)} / {progressSummary.total} ({Math.min(100, Math.round(progressSummary.percentage))}%)
               </span>
             </div>
             <div className="relative">
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500 ease-in-out"
                   style={{ width: `${Math.min(100, progressSummary.percentage)}%` }}
@@ -362,9 +391,9 @@ export default function UserDashboard() {
                   <div className="h-full bg-white bg-opacity-20 animate-pulse"></div>
                 </div>
               </div>
-              {progressSummary.percentage === 100 && (
+              {Math.min(progressSummary.completed, progressSummary.total) >= progressSummary.total && (
                 <div className="absolute -top-1 right-0">
-                  <Sparkles className="h-5 w-5 text-yellow-500 animate-bounce" />
+                  <Sparkles className="h-4 w-4 text-yellow-500 animate-bounce" />
                 </div>
               )}
             </div>

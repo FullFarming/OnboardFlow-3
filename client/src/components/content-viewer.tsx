@@ -94,7 +94,7 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
       case "Image":
       case "Image Slideshow":
         // Handle multi-image content
-        const allImages = contentImages.length > 0 ? contentImages : [{ imageUrl: content.contentSource, imageOrder: 1 }];
+        const allImages = contentImages.length > 0 ? contentImages : [{ imageUrl: content.contentSource, imageOrder: 1, imageCaption: null }];
         const currentImage = allImages[currentImageIndex];
         
         // Ensure image URL is properly formatted
@@ -136,12 +136,12 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
                 let caption = "";
                 
                 // For Image Slideshow or multi-image content, get caption from current image
-                if (content.contentType === "Image Slideshow" && currentImage?.imageCaption) {
+                if (content.contentType === "Image Slideshow" && currentImage && 'imageCaption' in currentImage && currentImage.imageCaption) {
                   caption = currentImage.imageCaption;
                 }
                 // For single Image content, check if contentSource has caption data
                 else if (content.contentType === "Image") {
-                  if (contentImages.length > 0 && currentImage?.imageCaption) {
+                  if (contentImages.length > 0 && currentImage && 'imageCaption' in currentImage && currentImage.imageCaption) {
                     // If there are content images with captions, use them
                     caption = currentImage.imageCaption;
                   } else {
