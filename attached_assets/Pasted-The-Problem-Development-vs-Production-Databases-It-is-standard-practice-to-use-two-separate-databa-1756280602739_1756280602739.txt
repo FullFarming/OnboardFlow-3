@@ -1,0 +1,67 @@
+The Problem: Development vs. Production Databases
+It is standard practice to use two separate databases:
+
+Development Database: For testing and building your app. It's okay to have test data here. Your image_90a74c.png shows this database has your admin and user data.
+
+Production Database: For your live, deployed application. This is what your actual users interact with. Your image_90a768.png shows this database is empty.
+
+You need to move or recreate the necessary user accounts from your development database to your production database.
+
+How to Fix It
+Here are the commands to copy specific tables (like admins and employees) from your development database to your production database.
+
+Step 1: Find Your Database URLs in Secrets
+Your application connects to these databases using special links called connection URLs. These are stored safely in Replit's Secrets.
+
+Click the "Secrets" tab (the lock icon 🔒) on the left side of your Replit workspace.
+
+You will find keys and values. You are looking for the keys that hold the database URLs. They are likely named:
+
+DATABASE_URL (for the Development Database)
+
+PROD_DATABASE_URL or a similar name for the Production Database.
+
+Important: Note down the exact secret names. You will use them in the next steps.
+
+Step 2: Open the Shell
+Go to the "Shell" tab in your Replit workspace. This is where you will type the commands.
+
+Step 3: Export Data from Development Database
+This command will copy the admins and employees tables from your development database into a file named migration.sql.
+
+Copy and paste the following command into the Shell. Remember to replace $DATABASE_URL with the correct Secret name for your development database.
+
+Bash
+
+pg_dump "$DATABASE_URL" --data-only --table=admins --table=employees > migration.sql
+Command Breakdown:
+
+pg_dump: The command to export PostgreSQL database data.
+
+"$DATABASE_URL": The connection URL for your development database, pulled from Secrets.
+
+--data-only: Exports only the data, not the table structure (which already exists in production).
+
+--table=admins --table=employees: Specifies which tables to export. You can add more --table=... flags if needed.
+
+> migration.sql: Saves the output to a file named migration.sql.
+
+After running this, you should see a new file migration.sql appear in your file list.
+
+Step 4: Import Data into Production Database
+This command reads the migration.sql file and adds the data to your production database.
+
+Copy and paste the following command into the Shell. Remember to replace $PROD_DATABASE_URL with the correct Secret name for your production database.
+
+Bash
+
+psql "$PROD_DATABASE_URL" < migration.sql
+Command Breakdown:
+
+psql: The command to connect to and manage a PostgreSQL database.
+
+"$PROD_DATABASE_URL": The connection URL for your production database, pulled from Secrets.
+
+< migration.sql: Takes the content of the migration.sql file and runs it on the production database.
+
+After this command finishes, your production database will contain the admin and employee data. You should now be able to log in to your deployed application. You can also delete the migration.sql file after you're done.
