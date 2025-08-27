@@ -13,6 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import UploadForm from "@/components/upload-form";
+import dashboardBg from "@assets/image_1756257576204.png";
 
 export default function AdminDashboard() {
   const { logoutMutation } = useAuth();
@@ -101,7 +102,10 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div 
+      className="min-h-screen bg-gray-50"
+      style={{ backgroundImage: `url(${dashboardBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
+    >
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

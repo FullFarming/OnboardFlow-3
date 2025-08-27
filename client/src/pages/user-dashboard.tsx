@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Inbox, Laptop, Users, Key, GraduationCap, LogOut } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
-import cwKoreaBg from "@assets/image_1756254246105.png";
+import dashboardBg from "@assets/image_1756257576204.png";
 
 export default function UserDashboard() {
   const [, setLocation] = useLocation();
@@ -72,7 +72,7 @@ export default function UserDashboard() {
   return (
     <div 
       className="min-h-screen hero-bg"
-      style={{ backgroundImage: `url(${cwKoreaBg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+      style={{ backgroundImage: `url(${dashboardBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
     >
       {/* Header */}
       <header className="bg-white bg-opacity-95 backdrop-blur-sm shadow-sm">
