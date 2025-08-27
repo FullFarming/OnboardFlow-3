@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Plus, Upload, X, ChevronUp, ChevronDown, Images } from "lucide-react";
+import { Plus, Upload, X, ChevronUp, ChevronDown, Images, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import Sortable from "sortablejs";
 
 interface MultiImageItem {
   file: File;
+  preview: string;
   order: number;
 }
 
@@ -20,6 +23,9 @@ export default function UploadForm() {
   const [iconImageFile, setIconImageFile] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
   const [multiImages, setMultiImages] = useState<MultiImageItem[]>([]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const sortableContainer = useRef<HTMLDivElement>(null);
 
   const addContentMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -103,16 +109,32 @@ export default function UploadForm() {
   const handleMultiImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const newImages = Array.from(files).map((file, index) => ({
-        file,
-        order: multiImages.length + index + 1,
-      }));
-      setMultiImages(prev => [...prev, ...newImages]);
+      Array.from(files).forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const preview = event.target?.result as string;
+          const newImage: MultiImageItem = {
+            file,
+            preview,
+            order: multiImages.length + index + 1,
+          };
+          setMultiImages(prev => [...prev, newImage].map((item, i) => ({
+            ...item,
+            order: i + 1,
+          })));
+        };
+        reader.readAsDataURL(file);
+      });
       e.target.value = ''; // Reset input
     }
   };
 
   const removeMultiImage = (index: number) => {
+    const imageToRemove = multiImages[index];
+    // Revoke the object URL to free memory
+    if (imageToRemove.preview) {
+      URL.revokeObjectURL(imageToRemove.preview);
+    }
     setMultiImages(prev => 
       prev.filter((_, i) => i !== index).map((item, i) => ({
         ...item,
@@ -137,6 +159,42 @@ export default function UploadForm() {
       [newArray[index], newArray[index + 1]] = [newArray[index + 1], newArray[index]];
       return newArray.map((item, i) => ({ ...item, order: i + 1 }));
     });
+  };
+
+  // Initialize Sortable for drag-and-drop reordering
+  useEffect(() => {
+    if (sortableContainer.current && multiImages.length > 0) {
+      const sortable = Sortable.create(sortableContainer.current, {
+        animation: 150,
+        handle: '.drag-handle',
+        onEnd: (evt) => {
+          const { oldIndex, newIndex } = evt;
+          if (oldIndex !== undefined && newIndex !== undefined && oldIndex !== newIndex) {
+            setMultiImages(prev => {
+              const newArray = [...prev];
+              const [movedItem] = newArray.splice(oldIndex, 1);
+              newArray.splice(newIndex, 0, movedItem);
+              return newArray.map((item, i) => ({ ...item, order: i + 1 }));
+            });
+          }
+        },
+      });
+      return () => sortable.destroy();
+    }
+  }, [multiImages.length]);
+
+  // Slideshow navigation functions
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % multiImages.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + multiImages.length) % multiImages.length);
+  };
+
+  const openPreviewModal = () => {
+    setCurrentSlide(0);
+    setShowPreviewModal(true);
   };
 
   const needsFileUpload = contentType && contentType !== "Link";
@@ -311,65 +369,85 @@ export default function UploadForm() {
                   </label>
                 </div>
 
-                {/* Multi-Image List */}
+                {/* Multi-Image Preview Grid with Drag & Drop */}
                 {multiImages.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">
-                      추가된 이미지 ({multiImages.length}개)
-                    </h4>
-                    <div className="max-h-48 overflow-y-auto space-y-2">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-700">
+                        추가된 이미지 ({multiImages.length}개)
+                      </h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={openPreviewModal}
+                        className="text-blue-600 hover:text-blue-700"
+                        data-testid="button-preview-slideshow"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        슬라이드쇼 미리보기
+                      </Button>
+                    </div>
+                    
+                    <div 
+                      ref={sortableContainer}
+                      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                    >
                       {multiImages.map((item, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                          className="relative group bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-move drag-handle"
                           data-testid={`multi-image-item-${index}`}
                         >
-                          <div className="flex items-center space-x-3">
-                            <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
-                              {item.order}
-                            </span>
-                            <span className="text-sm text-gray-700 truncate">
-                              {item.file.name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              ({(item.file.size / 1024).toFixed(1)} KB)
-                            </span>
+                          {/* Order Badge */}
+                          <div className="absolute top-2 left-2 z-10 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                            {item.order}
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => moveImageUp(index)}
-                              disabled={index === 0}
-                              data-testid={`button-move-up-${index}`}
-                            >
-                              <ChevronUp className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => moveImageDown(index)}
-                              disabled={index === multiImages.length - 1}
-                              data-testid={`button-move-down-${index}`}
-                            >
-                              <ChevronDown className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeMultiImage(index)}
-                              className="text-red-500 hover:text-red-700"
-                              data-testid={`button-remove-multi-image-${index}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                          
+                          {/* Remove Button */}
+                          <button
+                            type="button"
+                            onClick={() => removeMultiImage(index)}
+                            className="absolute top-2 right-2 z-10 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            data-testid={`button-remove-multi-image-${index}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          
+                          {/* Image Preview */}
+                          <div className="aspect-square bg-gray-100">
+                            <img
+                              src={item.preview}
+                              alt={item.file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          
+                          {/* File Info */}
+                          <div className="p-2">
+                            <p className="text-xs text-gray-600 truncate">
+                              {item.file.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {(item.file.size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
+                          
+                          {/* Drag Handle Indicator */}
+                          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-50 transition-opacity">
+                            <div className="flex space-x-1">
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
+                    
+                    <p className="text-xs text-gray-500 text-center">
+                      💡 이미지를 드래그하여 순서를 변경할 수 있습니다
+                    </p>
                   </div>
                 )}
               </div>
@@ -400,6 +478,82 @@ export default function UploadForm() {
           </Button>
         </form>
       </CardContent>
+
+      {/* Slideshow Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-4xl w-full h-[80vh] p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              슬라이드쇼 미리보기
+            </DialogTitle>
+          </DialogHeader>
+          
+          {multiImages.length > 0 && (
+            <div className="flex-1 flex flex-col">
+              {/* Slideshow Container */}
+              <div className="flex-1 relative bg-black rounded-lg mx-6 mb-4">
+                <img
+                  src={multiImages[currentSlide]?.preview}
+                  alt={multiImages[currentSlide]?.file.name}
+                  className="w-full h-full object-contain"
+                />
+                
+                {/* Navigation Buttons */}
+                {multiImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevSlide}
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all"
+                      data-testid="button-prev-slide"
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                      onClick={nextSlide}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all"
+                      data-testid="button-next-slide"
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </button>
+                  </>
+                )}
+                
+                {/* Slide Counter */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                  {currentSlide + 1} / {multiImages.length}
+                </div>
+              </div>
+              
+              {/* Thumbnail Navigation */}
+              {multiImages.length > 1 && (
+                <div className="px-6 pb-6">
+                  <div className="flex justify-center space-x-2 overflow-x-auto">
+                    {multiImages.map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentSlide(index)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                          currentSlide === index
+                            ? 'border-blue-500 opacity-100'
+                            : 'border-gray-300 opacity-50 hover:opacity-75'
+                        }`}
+                        data-testid={`thumbnail-${index}`}
+                      >
+                        <img
+                          src={item.preview}
+                          alt={item.file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

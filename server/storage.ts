@@ -232,6 +232,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async markContentComplete(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress; alreadyCompleted: boolean }> {
+    // Clean up any existing duplicates first
+    await this.cleanupDuplicateProgress();
+    
+    const existing = await this.getContentProgress(employeeId, contentId);
+    
+    if (existing && existing.completed === 1) {
+      // Already completed - return existing record without modification
+      return {
+        completed: true,
+        progress: existing,
+        alreadyCompleted: true,
+      };
+    }
+    
+    // Mark as completed (create new record or update existing)
+    const progress = await this.createOrUpdateProgress({
+      employeeId,
+      contentId,
+      completed: 1,
+    });
+    
+    return {
+      completed: true,
+      progress,
+      alreadyCompleted: false,
+    };
+  }
+
+  // Keep the toggle method for admin panel or special cases
   async toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }> {
     // Clean up any existing duplicates first
     await this.cleanupDuplicateProgress();

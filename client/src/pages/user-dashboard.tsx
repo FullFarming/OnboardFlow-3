@@ -52,7 +52,30 @@ export default function UserDashboard() {
     enabled: !!currentEmployee?.id,
   });
 
-  // Toggle completion mutation
+  // Mark completion mutation (idempotent)
+  const markCompleteMutation = useMutation({
+    mutationFn: async ({ contentId, employeeId }: { contentId: string; employeeId: string }) => {
+      const response = await apiRequest("POST", "/api/content/mark-complete", {
+        contentId,
+        employeeId,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      refetchProgress();
+      refetchUserProgress();
+      if (data.alreadyCompleted) {
+        toast({ title: "이미 완료된 콘텐츠입니다." });
+      } else {
+        toast({ title: "콘텐츠 완료!" });
+      }
+    },
+    onError: () => {
+      toast({ title: "업데이트 실패", variant: "destructive" });
+    },
+  });
+
+  // Toggle completion mutation (for admin panel double-click)
   const toggleCompletionMutation = useMutation({
     mutationFn: async ({ contentId, employeeId }: { contentId: string; employeeId: string }) => {
       const response = await apiRequest("POST", "/api/content/toggle-completion", {
@@ -95,8 +118,8 @@ export default function UserDashboard() {
   };
 
   const handleContentClick = (content: ContentIcon, event?: React.MouseEvent) => {
-    // Check if this is a completion toggle (right-click or ctrl+click)
-    const isToggleClick = event?.ctrlKey || event?.metaKey || event?.button === 2;
+    // Check if this is a completion toggle (double-click for toggle functionality)
+    const isToggleClick = event?.detail === 2; // Double-click
     
     if (isToggleClick && currentEmployee) {
       event?.preventDefault();
@@ -107,17 +130,27 @@ export default function UserDashboard() {
       return;
     }
 
+    // Check if content is already completed
+    const isCompleted = isContentCompleted(content.id);
+
     // Normal content viewing
     if (content.contentType === "Link") {
-      // Track progress for link clicks
-      if (currentEmployee) {
-        toggleCompletionMutation.mutate({
+      // Only mark as complete if not already completed
+      if (currentEmployee && !isCompleted) {
+        markCompleteMutation.mutate({
           contentId: content.id,
           employeeId: currentEmployee.id,
         });
       }
       window.open(content.contentSource, "_blank");
     } else {
+      // For other content types, mark as complete only if not already completed
+      if (currentEmployee && !isCompleted) {
+        markCompleteMutation.mutate({
+          contentId: content.id,
+          employeeId: currentEmployee.id,
+        });
+      }
       setSelectedContent(content);
     }
   };
@@ -316,14 +349,14 @@ export default function UserDashboard() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">온보딩 진행률</span>
               <span className="text-sm font-bold text-blue-600">
-                EXP: {progressSummary.completed} / {progressSummary.total} ({progressSummary.percentage}%)
+                EXP: {progressSummary.completed} / {progressSummary.total} ({Math.min(100, Math.round(progressSummary.percentage))}%)
               </span>
             </div>
             <div className="relative">
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500 ease-in-out"
-                  style={{ width: `${progressSummary.percentage}%` }}
+                  style={{ width: `${Math.min(100, progressSummary.percentage)}%` }}
                   data-testid="exp-progress-bar"
                 >
                   <div className="h-full bg-white bg-opacity-20 animate-pulse"></div>

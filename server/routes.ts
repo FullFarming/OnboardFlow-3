@@ -284,8 +284,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Toggle completion status
-  app.post("/api/content/toggle-completion", async (req, res) => {
+  // Mark content as complete (idempotent)
+  app.post("/api/content/mark-complete", async (req, res) => {
     try {
       const { contentId, employeeId } = req.body;
       
@@ -293,11 +293,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "contentId and employeeId are required" });
       }
 
-      const result = await storage.toggleContentCompletion(employeeId, contentId);
+      const result = await storage.markContentComplete(employeeId, contentId);
       res.json(result);
     } catch (error) {
-      console.error("Error toggling content completion:", error);
-      res.status(500).json({ error: "Failed to toggle content completion" });
+      console.error("Error marking content completion:", error);
+      res.status(500).json({ error: "Failed to mark content completion" });
     }
   });
 

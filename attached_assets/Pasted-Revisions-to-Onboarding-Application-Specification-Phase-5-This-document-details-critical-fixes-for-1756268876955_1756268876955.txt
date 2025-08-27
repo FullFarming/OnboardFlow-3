@@ -1,0 +1,134 @@
+Revisions to Onboarding Application Specification (Phase 5)
+This document details critical fixes for the Gamified Progress Bar and the Admin Panel's Image Slideshow functionality.
+
+1. Revisions to Gamified Progress Bar Logic
+Problem Summary:
+
+Duplicate Counting: Clicking a completed item multiple times incorrectly increases the progress count.
+
+Exceeds 100%: As a result of duplicate counting, the progress can exceed the maximum, as shown in the example image (EXP: 4 / 3 (133%)).
+
+Required Logic: Completion should be a one-way action. Once an item is completed, it should add 1 to the progress, and subsequent clicks should not add to the count again.
+
+1.1. Backend API & Logic Modification
+The core logic must be changed from "toggling" completion to "marking as complete" permanently.
+
+Endpoint Change: Rename the endpoint for clarity and purpose.
+
+From: POST /api/content/toggle-completion
+
+To: POST /api/content/mark-complete
+
+Revised Backend Logic:
+
+When the POST /api/content/mark-complete endpoint is called with a contentId, the server must perform the following check.
+
+Query the UserContentCompletion table for a record matching the current userId and the provided contentId.
+
+If a record does NOT exist:
+
+Create a new record.
+
+Set userId, contentId, and set isCompleted to true.
+
+Return a success message indicating the item is now complete.
+
+If a record ALREADY exists:
+
+Do nothing. Do not modify the record.
+
+Return a success message indicating the item was already complete.
+
+This logic makes the action idempotent. Calling the API multiple times for the same item will have no further effect after the first successful call, thus preventing duplicate counts at the database level.
+
+1.2. Frontend State Management & Interaction Logic
+The frontend must be updated to prevent sending redundant requests and to correctly manage the UI state.
+
+Initial State: When the dashboard loads, fetch and store the completion status (isCompleted: true/false) for each curriculum icon locally.
+
+Click Event Handler Logic:
+
+When a user clicks on a curriculum icon, the application must first check the local state of that item.
+
+If the item's local state is isCompleted: false:
+
+Call the POST /api/content/mark-complete endpoint.
+
+On a successful API response, update the local state for that item to isCompleted: true.
+
+Increment the completedItems count in the progress bar's state by 1.
+
+Then, open the content (video, PDF, slideshow, etc.).
+
+If the item's local state is ALREADY isCompleted: true:
+
+Do NOT call the API.
+
+Simply open the content directly.
+
+Progress Bar Calculation:
+
+The calculation (completedItems / totalItems) * 100 will now be accurate. To prevent any floating-point edge cases, cap the maximum value.
+
+const percentage = Math.min(100, (completedItems / totalItems) * 100);
+
+This ensures the progress bar and text will never display a value greater than 100%.
+
+2. Revisions to Admin Panel's Image Slideshow Functionality
+Problem Summary:
+
+No Image Previews: After selecting multiple images for an "Image Slideshow" content type, the images are not visually displayed in the admin panel.
+
+No Confirmation Flow: There is no way for the admin to see how the slideshow will look or to confirm the order of the images before saving.
+
+2.1. Implementing Client-Side Image Previews
+The issue is that the frontend is not rendering the selected image files. This must be implemented using JavaScript.
+
+JavaScript Event Handler:
+
+Add a change event listener to the multi-image file input (<input id="slideshow-upload" type="file" multiple>).
+
+Inside the event handler function:
+
+First, clear any existing images in the preview area to handle re-selection.
+
+Get the list of selected files from event.target.files.
+
+Loop through each file in the list.
+
+For each file, create an instance of the FileReader API.
+
+Use fileReader.readAsDataURL(file) to generate a local Base64 URL for the image.
+
+The fileReader.onload event will fire when the image data is ready. Inside this event:
+
+Create an <img> element.
+
+Set the src of the <img> element to fileReader.result.
+
+Create a container div for the image and any other controls (like a "delete" button).
+
+Append this new element to the image preview area on the page.
+
+This process will make the selected images appear instantly on the admin panel.
+
+2.2. Implementing a Slideshow Preview and Reordering Confirmation
+To allow the admin to "flip through the images in order," a preview modal should be implemented.
+
+Drag-and-Drop Reordering: As specified before, use a library like SortableJS on the container holding the image previews. This will allow the admin to drag and drop the thumbnails to set the final order.
+
+"Preview Slideshow" Button:
+
+Add a new button next to the "Add Content" button, labeled "Preview Slideshow". This button is only visible when the Image Slideshow content type is selected and at least one image has been uploaded.
+
+Preview Modal:
+
+When the "Preview Slideshow" button is clicked, open a modal window that simulates the end-user's viewing experience.
+
+This modal will contain a slideshow/carousel component.
+
+It will be populated with the images currently in the preview area, in their current, reordered sequence.
+
+The modal will include "Next" and "Previous" buttons, allowing the admin to navigate through the images exactly as a new employee would.
+
+This provides a final confirmation step, ensuring the content is correct before the admin saves it.
