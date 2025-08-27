@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Building, Shield, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import cwKoreaBg from "@assets/cw-korea-bg.svg";
+import cwKoreaBg from "@assets/image_1756254246105.png";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -18,8 +18,13 @@ export default function AuthPage() {
   const [isRegister, setIsRegister] = useState(false);
 
   // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      setLocation("/admin");
+    }
+  }, [user, setLocation]);
+
   if (user) {
-    setLocation("/admin");
     return null;
   }
 

@@ -118,7 +118,7 @@ export default function UploadForm() {
                 아이콘 이미지 (선택사항)
               </Label>
               <div className="space-y-2">
-                <div className="upload-zone rounded-lg p-6 text-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors">
+                <label className="upload-zone rounded-lg p-6 text-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors block">
                   <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-600 text-sm">
                     {iconImageFile ? iconImageFile.name : "이미지를 선택하세요"}
@@ -127,10 +127,10 @@ export default function UploadForm() {
                     type="file"
                     accept="image/*"
                     onChange={handleIconImageChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="hidden"
                     data-testid="input-icon-image"
                   />
-                </div>
+                </label>
                 {iconImageFile && (
                   <Button
                     type="button"
@@ -176,7 +176,7 @@ export default function UploadForm() {
                       />
                       <Label className="form-label">URL (선택사항)</Label>
                     </div>
-                    <div className="upload-zone rounded-lg p-6 text-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors">
+                    <label className="upload-zone rounded-lg p-6 text-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors block">
                       <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-gray-600 text-sm">
                         {contentFile ? contentFile.name : "또는 파일을 업로드하세요"}
@@ -185,10 +185,10 @@ export default function UploadForm() {
                         type="file"
                         accept={contentType === "PDF" ? ".pdf" : contentType === "Video" ? "video/*" : "image/*"}
                         onChange={handleContentFileChange}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="hidden"
                         data-testid="input-content-file"
                       />
-                    </div>
+                    </label>
                     {contentFile && (
                       <Button
                         type="button"

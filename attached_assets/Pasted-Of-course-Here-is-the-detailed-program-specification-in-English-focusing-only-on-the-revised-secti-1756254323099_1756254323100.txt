@@ -1,0 +1,194 @@
+Of course. Here is the detailed program specification in English, focusing only on the revised sections as per your feedback.
+
+Revisions to Onboarding Web Application Specification
+1. Login Page: UI and UX Enhancements
+1.1. Background and Modal Styling
+Objective: Implement a fixed, full-screen background using the user-provided image (image_b92abb.png) and style the login form container with a semi-transparent overlay.
+
+Technical Specifications (CSS):
+
+CSS
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    background-image: url('path/to/your/image_b92abb.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    position: fixed;
+}
+
+.login-modal {
+    padding: 40px;
+    background-color: rgba(255, 255, 255, 0.85); /* White with 85% opacity */
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(5px); /* Creates a frosted glass effect */
+    -webkit-backdrop-filter: blur(5px); /* For Safari compatibility */
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+1.2. Input Field Placeholder (Hint Text) Behavior
+Objective: Ensure that the placeholder text inside the input fields disappears when the user focuses on or types in the field, and reappears only if the field becomes empty again.
+
+Technical Specifications (CSS & JavaScript):
+
+CSS: Use the :placeholder-shown pseudo-class for advanced styling if needed, but the primary logic is often handled by modern browser defaults or simple JavaScript. A CSS-only approach to hide the placeholder on focus is:
+
+CSS
+
+.login-modal input:focus::placeholder {
+    color: transparent;
+}
+JavaScript (for robust cross-browser compatibility):
+
+JavaScript
+
+// Get all input elements within the login modal
+const inputs = document.querySelectorAll('.login-modal input');
+
+inputs.forEach(input => {
+    const placeholderText = input.getAttribute('placeholder');
+
+    input.addEventListener('focus', () => {
+        input.setAttribute('placeholder', '');
+    });
+
+    input.addEventListener('blur', () => {
+        if (input.value === '') {
+            input.setAttribute('placeholder', placeholderText);
+        }
+    });
+});
+2. Authentication: Unified Login Flow
+Objective: Consolidate the login process into a single form. The backend will be responsible for determining the user's role (admin or user) and redirecting them to the appropriate dashboard.
+
+Technical Specifications (Backend - Pseudocode for an Express.js route):
+
+JavaScript
+
+app.post('/api/login', async (req, res) => {
+    const { identifier, credential } = req.body;
+
+    // Step 1: Validate input
+    if (!identifier || !credential) {
+        return res.status(400).json({ message: 'Identifier and credential are required.' });
+    }
+
+    // Step 2: Attempt to authenticate as an Admin
+    const admin = await db.Admins.findOne({ where: { adminId: identifier } });
+    if (admin && await bcrypt.compare(credential, admin.password)) {
+        // Admin found and password matches
+        const token = jwt.sign({ userId: admin.id, role: 'admin' }, process.env.JWT_SECRET);
+        return res.json({ success: true, token, redirectTo: '/admin/dashboard' });
+    }
+
+    // Step 3: If not an admin, attempt to authenticate as a User
+    const user = await db.Users.findOne({ where: { userName: identifier } });
+    // NOTE: For user password (phone suffix), use a consistent hashing method
+    if (user && await bcrypt.compare(credential, user.password)) {
+        // User found and password (phone suffix) matches
+        const token = jwt.sign({ userId: user.id, role: 'user' }, process.env.JWT_SECRET);
+        return res.json({ success: true, token, redirectTo: '/user/dashboard' });
+    }
+
+    // Step 4: If no match is found, return an authentication error
+    return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+});
+3. Admin Panel: Content Management Tab Functionality
+Objective: Correct the file input behavior so that clicking the designated "upload area" correctly triggers the file selection dialog. Implement dynamic form fields based on the Content Type dropdown selection.
+
+Technical Specifications (HTML & JavaScript):
+
+3.1. Correct File Input Trigger
+HTML Structure: Associate a <label> with the input type="file". The input itself can be visually hidden, and the label can be styled as the clickable upload area.
+
+HTML
+
+<label for="file-upload" class="custom-file-upload">
+    <i class="fa fa-cloud-upload"></i> Upload File
+</label>
+<input id="file-upload" type="file" style="display:none;"/>
+CSS Styling:
+
+CSS
+
+.custom-file-upload {
+    border: 1px dashed #ccc;
+    display: inline-block;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+.custom-file-upload:hover {
+    background-color: #f9f9f9;
+}
+3.2. Dynamic Content Source Fields
+HTML Structure: Create separate div containers for each content type's specific inputs.
+
+HTML
+
+<select id="contentTypeSelector">
+    <option value="link">Link</option>
+    <option value="video">Video</option>
+    <option value="image">Image</option>
+    <option value="pdf">PDF</option>
+</select>
+
+<div id="sourceLink" class="content-source-wrapper">
+    <input type="url" placeholder="Enter URL (e.g., https://example.com)">
+</div>
+
+<div id="sourceVideo" class="content-source-wrapper" style="display:none;">
+    <input type="url" placeholder="Enter Video URL (YouTube, Vimeo)">
+    <span>OR</span>
+    <label for="video-upload" class="custom-file-upload">Upload Video File</label>
+    <input id="video-upload" type="file" style="display:none;">
+</div>
+
+<div id="sourceImage" class="content-source-wrapper" style="display:none;">
+     <label for="image-upload" class="custom-file-upload">Upload Image File</label>
+     <input id="image-upload" type="file" style="display:none;">
+</div>
+
+<div id="sourcePdf" class="content-source-wrapper" style="display:none;">
+     <label for="pdf-upload" class="custom-file-upload">Upload PDF File</label>
+     <input id="pdf-upload" type="file" style="display:none;">
+</div>
+JavaScript Logic: Add an event listener to the dropdown to show/hide the relevant input containers.
+
+JavaScript
+
+document.getElementById('contentTypeSelector').addEventListener('change', function() {
+    // Hide all source containers first
+    document.querySelectorAll('.content-source-wrapper').forEach(div => {
+        div.style.display = 'none';
+    });
+
+    // Show the selected one
+    const selectedType = this.value; // e.g., 'link', 'video'
+    if (selectedType === 'link') {
+        document.getElementById('sourceLink').style.display = 'block';
+    } else if (selectedType === 'video') {
+        document.getElementById('sourceVideo').style.display = 'block';
+    } else if (selectedType === 'image') {
+        document.getElementById('sourceImage').style.display = 'block';
+    } else if (selectedType === 'pdf') {
+        document.getElementById('sourcePdf').style.display = 'block';
+    }
+});
+
+// Trigger the initial state on page load
+document.getElementById('contentTypeSelector').dispatchEvent(new Event('change'));

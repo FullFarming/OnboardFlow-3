@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Inbox, Laptop, Users, Key, GraduationCap, LogOut } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
-import cwKoreaBg from "@assets/cw-korea-bg.svg";
+import cwKoreaBg from "@assets/image_1756254246105.png";
 
 export default function UserDashboard() {
   const [, setLocation] = useLocation();
