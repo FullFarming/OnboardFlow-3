@@ -266,36 +266,6 @@ export default function UserDashboard() {
         </Card>
 
 
-        {/* Onboarding Progress */}
-        {progressSummary && (
-          <Card className="glass-card mb-4">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 brand-navy text-base">
-                <Trophy className="h-4 w-4" />
-                온보딩 진행률
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">완료도</span>
-                  <span className="text-sm font-bold text-blue-600" data-testid="text-progress-percentage">
-                    {Math.min(progressSummary.completed, progressSummary.total)} / {progressSummary.total} ({Math.min(progressSummary.percentage, 100)}%)
-                  </span>
-                </div>
-                <Progress 
-                  value={Math.min(progressSummary.percentage, 100)} 
-                  className="w-full h-3" 
-                  data-testid="progress-bar"
-                />
-                <p className="text-xs text-gray-600 text-center">
-                  {progressSummary.completed >= progressSummary.total ? "🎉 모든 온보딩을 완료했습니다!" : "온보딩을 계속 진행해주세요"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Onboarding Curriculum */}
         <Card className="glass-card">
           <CardHeader className="pb-3">
