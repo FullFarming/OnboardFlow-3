@@ -84,7 +84,7 @@ export default function UploadForm() {
               <Input
                 name="iconTitle"
                 required
-                className="form-input"
+                className="form-input peer"
                 placeholder=" "
                 data-testid="input-icon-title"
               />

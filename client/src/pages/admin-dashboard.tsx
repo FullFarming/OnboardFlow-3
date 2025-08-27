@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                     <Input
                       name="userName"
                       required
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-user-name"
                     />
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
                       type="tel"
                       required
                       maxLength={4}
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-user-password"
                     />
@@ -180,7 +180,7 @@ export default function AdminDashboard() {
                       name="email"
                       type="email"
                       required
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-user-email"
                     />
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
                     <Input
                       name="buddyName"
                       required
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-buddy-name"
                     />
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
                     <Input
                       name="lockerNumber"
                       required
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-locker-number"
                     />
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
                     <Input
                       name="laptopInfo"
                       required
-                      className="form-input"
+                      className="form-input peer"
                       placeholder=" "
                       data-testid="input-laptop-info"
                     />
