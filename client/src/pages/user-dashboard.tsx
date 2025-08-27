@@ -231,32 +231,6 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
 
-        {/* Progress Card */}
-        {progressSummary && (
-          <Card className="glass-card mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 brand-navy">
-                <Trophy className="h-5 w-5" />
-                진행 상황
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">전체 진행률</span>
-                  <span className="text-sm font-bold brand-navy" data-testid="text-progress-percentage">
-                    {progressSummary.percentage}%
-                  </span>
-                </div>
-                <Progress value={progressSummary.percentage} className="w-full" data-testid="progress-bar" />
-                <div className="flex justify-between items-center text-sm text-gray-600">
-                  <span>완료: {progressSummary.completed}</span>
-                  <span>전체: {progressSummary.total}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Onboarding Curriculum */}
         <Card className="glass-card">
