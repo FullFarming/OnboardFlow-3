@@ -7,6 +7,7 @@ import { Inbox, Laptop, Users, Key, GraduationCap, LogOut } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
 import dashboardBg from "@assets/image_1756257576204.png";
+import cwLogo from "@assets/CW_Logo_Color_1756258685176.png";
 
 export default function UserDashboard() {
   const [, setLocation] = useLocation();
@@ -78,11 +79,19 @@ export default function UserDashboard() {
       <header className="bg-white bg-opacity-95 backdrop-blur-sm shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900" data-testid="text-welcome-message">
-                안녕하세요, <span data-testid="text-user-name">{currentEmployee.userName}</span>님!
-              </h1>
-              <p className="text-sm text-gray-600">C&W Korea 온보딩에 오신 것을 환영합니다</p>
+            <div className="flex items-center space-x-4">
+              <img 
+                src={cwLogo} 
+                alt="C&W Korea Logo" 
+                className="h-12 w-auto"
+                data-testid="img-cw-logo"
+              />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900" data-testid="text-welcome-message">
+                  안녕하세요, <span data-testid="text-user-name">{currentEmployee.userName}</span>님!
+                </h1>
+                <p className="text-sm text-gray-600">C&W Korea 온보딩에 오신 것을 환영합니다</p>
+              </div>
             </div>
             <Button 
               variant="ghost" 
