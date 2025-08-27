@@ -109,6 +109,13 @@ export default function UserDashboard() {
 
     // Normal content viewing
     if (content.contentType === "Link") {
+      // Track progress for link clicks
+      if (currentEmployee) {
+        toggleCompletionMutation.mutate({
+          contentId: content.id,
+          employeeId: currentEmployee.id,
+        });
+      }
       window.open(content.contentSource, "_blank");
     } else {
       setSelectedContent(content);
@@ -289,7 +296,17 @@ export default function UserDashboard() {
                         <div className={`bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105 ${isCompleted ? 'ring-2 ring-green-500' : ''}`}>
                           <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden relative`}>
                             {content.iconImage ? (
-                              <img src={content.iconImage} alt={content.iconTitle} className="w-full h-full object-cover rounded-xl" />
+                              <img 
+                                src={content.iconImage.startsWith('/uploads') ? content.iconImage : `/uploads/${content.iconImage}`} 
+                                alt={content.iconTitle} 
+                                className="w-full h-full object-cover rounded-xl"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  // Show fallback icon instead
+                                  target.parentElement!.innerHTML = `<span class="text-4xl">${getContentTypeIcon(content.contentType)}</span>`;
+                                }}
+                              />
                             ) : (
                               getContentTypeIcon(content.contentType)
                             )}

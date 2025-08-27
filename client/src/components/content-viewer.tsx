@@ -97,13 +97,28 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
         const allImages = contentImages.length > 0 ? contentImages : [{ imageUrl: content.contentSource, imageOrder: 1 }];
         const currentImage = allImages[currentImageIndex];
         
+        // Ensure image URL is properly formatted
+        const imageUrl = currentImage.imageUrl.startsWith('/uploads') 
+          ? currentImage.imageUrl 
+          : currentImage.imageUrl.startsWith('http') 
+            ? currentImage.imageUrl 
+            : `/uploads/${currentImage.imageUrl}`;
+        
         return (
           <div className="w-full">
             <div className="relative">
               <img
-                src={currentImage.imageUrl}
+                src={imageUrl}
                 alt={`${content.iconTitle} - ${currentImageIndex + 1}`}
                 className="w-full h-auto rounded-lg shadow-lg"
+                onError={(e) => {
+                  console.error('이미지 로드 실패:', imageUrl);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('이미지 로드 성공:', imageUrl);
+                }}
               />
               
               {/* Multi-image navigation */}

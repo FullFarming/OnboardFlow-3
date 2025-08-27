@@ -16,6 +16,27 @@ if (!fs.existsSync(uploadDir)) {
 const upload = multer({
   dest: uploadDir,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    // Allow all image formats for image fields
+    if (file.fieldname === 'iconImage' || file.fieldname === 'images') {
+      const allowedImageTypes = /jpeg|jpg|png|gif|webp|bmp|svg/;
+      const fileExtension = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimeType = allowedImageTypes.test(file.mimetype);
+      
+      if (fileExtension && mimeType) {
+        return cb(null, true);
+      } else {
+        return cb(new Error('이미지 파일만 업로드 가능합니다. (jpg, png, gif, webp, bmp, svg)'));
+      }
+    }
+    
+    // Allow any file type for contentFile (since it can be video, pdf, or image)
+    if (file.fieldname === 'contentFile') {
+      return cb(null, true);
+    }
+    
+    cb(null, true);
+  },
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -280,12 +301,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files
+  // Serve uploaded files with proper headers for images
   app.use('/uploads', (req, res, next) => {
     const filePath = path.join(uploadDir, req.path);
     if (fs.existsSync(filePath)) {
+      // Set proper headers for different file types
+      const ext = path.extname(filePath).toLowerCase();
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'].includes(ext)) {
+        res.setHeader('Content-Type', `image/${ext.substring(1)}`);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
       res.sendFile(filePath);
     } else {
+      console.error(`File not found: ${filePath}`);
       res.status(404).json({ error: "File not found" });
     }
   });
