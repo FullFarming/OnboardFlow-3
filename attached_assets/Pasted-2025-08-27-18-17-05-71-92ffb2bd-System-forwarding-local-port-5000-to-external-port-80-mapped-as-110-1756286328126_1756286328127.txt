@@ -1,0 +1,111 @@
+2025-08-27 18:17:05.71
+92ffb2bd
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2025-08-27 18:17:06.95
+92ffb2bd
+User
+> rest-express@1.0.0 start
+2025-08-27 18:17:06.95
+92ffb2bd
+User
+> NODE_ENV=production node dist/index.js
+2025-08-27 18:17:07.82
+92ffb2bd
+User
+9:17:07 AM [express] serving on port 5000
+2025-08-27 18:17:32.46
+92ffb2bd
+User
+9:17:32 AM [express] GET /api/user 401 in 2ms
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+o?t(o):n(u)},"cb"),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace(
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+^
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+error: password authentication failed for user 'neondb_owner'
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+at async DatabaseStorage.getUserByUsername (file:///home/runner/workspace/dist/index.js:147:21)
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+at async Strategy._verify (file:///home/runner/workspace/dist/index.js:329:20) {
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+length: 75,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+severity: 'ERROR',
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+code: 'XX000',
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+detail: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+hint: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+position: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+internalPosition: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+internalQuery: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+where: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+schema: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+table: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+column: undefined,
+2025-08-27 18:17:39.11
+92ffb2bd
+User
+dataType: undefined,
