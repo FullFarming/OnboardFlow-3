@@ -93,7 +93,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", (req, res, next) => {
     console.log('로그인 요청 받음:', req.body);
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         console.error('로그인 인증 오류:', err);
         return res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다." });
