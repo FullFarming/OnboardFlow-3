@@ -110,21 +110,23 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
           <div className="w-full">
             <div className="relative">
               {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={`${content.iconTitle} - ${currentImageIndex + 1}`}
-                  className="w-full h-auto rounded-lg shadow-lg"
-                  onError={(e) => {
-                    console.error('이미지 로드 실패:', imageUrl);
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                  onLoad={() => {
-                    console.log('이미지 로드 성공:', imageUrl);
-                  }}
-                />
+                <div className="w-full h-80 bg-gray-100 rounded-lg overflow-hidden shadow-lg">
+                  <img
+                    src={imageUrl}
+                    alt={`${content.iconTitle} - ${currentImageIndex + 1}`}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      console.error('이미지 로드 실패:', imageUrl);
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('이미지 로드 성공:', imageUrl);
+                    }}
+                  />
+                </div>
               ) : (
-                <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                <div className="w-full h-80 bg-gray-200 rounded-lg flex items-center justify-center">
                   <span className="text-gray-500">이미지를 찾을 수 없습니다</span>
                 </div>
               )}
@@ -133,23 +135,30 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
               {(() => {
                 let caption = "";
                 
-                // For single Image content, check if contentSource has caption data
-                if (content.contentType === "Image" && contentImages.length === 0) {
-                  try {
-                    const parsed = JSON.parse(content.contentSource);
-                    caption = parsed.caption || "";
-                  } catch {
-                    // No caption data
-                  }
-                }
                 // For Image Slideshow or multi-image content, get caption from current image
-                else if (currentImage?.imageCaption) {
+                if (content.contentType === "Image Slideshow" && currentImage?.imageCaption) {
                   caption = currentImage.imageCaption;
                 }
+                // For single Image content, check if contentSource has caption data
+                else if (content.contentType === "Image") {
+                  if (contentImages.length > 0 && currentImage?.imageCaption) {
+                    // If there are content images with captions, use them
+                    caption = currentImage.imageCaption;
+                  } else {
+                    // Try to parse contentSource for JSON caption data
+                    try {
+                      const parsed = JSON.parse(content.contentSource);
+                      caption = parsed.caption || "";
+                    } catch {
+                      // If not JSON, no caption available
+                      caption = "";
+                    }
+                  }
+                }
                 
-                return caption ? (
-                  <div className="mt-3 px-4 py-2 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700 text-center">{caption}</p>
+                return caption && caption.trim() ? (
+                  <div className="mt-4 px-4 py-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                    <p className="text-sm text-gray-800 leading-relaxed">{caption}</p>
                   </div>
                 ) : null;
               })()}
