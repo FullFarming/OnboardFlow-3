@@ -80,7 +80,7 @@ export default function AuthPage() {
                 name="identifier"
                 type="text"
                 required
-                className="form-input"
+                className="form-input peer"
                 placeholder=" "
                 data-testid="input-name"
               />
@@ -94,7 +94,7 @@ export default function AuthPage() {
                 required
                 maxLength={4}
                 pattern="[0-9]{4}"
-                className="form-input"
+                className="form-input peer"
                 placeholder=" "
                 data-testid="input-phone"
               />
