@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertEmployeeSchema, insertContentIconSchema } from "@shared/schema";
+import { insertEmployeeSchema, insertContentIconSchema, insertContentImageSchema, insertUserProgressSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -173,6 +173,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting content icon:", error);
       res.status(400).json({ error: "Failed to delete content icon" });
+    }
+  });
+
+  // Content Images routes (for multi-image support)
+  app.get("/api/content-images/:contentId", async (req, res) => {
+    try {
+      const { contentId } = req.params;
+      const images = await storage.getContentImages(contentId);
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching content images:", error);
+      res.status(500).json({ error: "Failed to fetch content images" });
+    }
+  });
+
+  app.post("/api/content-images", upload.array('images', 10), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      const { contentId } = req.body;
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No images uploaded" });
+      }
+
+      const createdImages = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const imageData = {
+          contentId,
+          imageUrl: `/uploads/${file.filename}`,
+          imageOrder: i + 1,
+        };
+        
+        const validatedData = insertContentImageSchema.parse(imageData);
+        const image = await storage.createContentImage(validatedData);
+        createdImages.push(image);
+      }
+      
+      res.status(201).json(createdImages);
+    } catch (error) {
+      console.error("Error creating content images:", error);
+      res.status(400).json({ error: "Failed to create content images" });
+    }
+  });
+
+  app.delete("/api/content-images/:contentId", async (req, res) => {
+    try {
+      const { contentId } = req.params;
+      await storage.deleteContentImages(contentId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting content images:", error);
+      res.status(400).json({ error: "Failed to delete content images" });
+    }
+  });
+
+  // User Progress routes
+  app.get("/api/progress/:employeeId", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const progress = await storage.getUserProgress(employeeId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching user progress:", error);
+      res.status(500).json({ error: "Failed to fetch user progress" });
+    }
+  });
+
+  app.get("/api/progress-summary/:employeeId", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const summary = await storage.getProgressSummary(employeeId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching progress summary:", error);
+      res.status(500).json({ error: "Failed to fetch progress summary" });
+    }
+  });
+
+  app.post("/api/progress", async (req, res) => {
+    try {
+      const validatedData = insertUserProgressSchema.parse(req.body);
+      const progress = await storage.createOrUpdateProgress(validatedData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error updating progress:", error);
+      res.status(400).json({ error: "Failed to update progress" });
     }
   });
 

@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight, CheckCircle2, Trophy, Sparkles } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -13,6 +15,8 @@ export default function UserDashboard() {
   const [, setLocation] = useLocation();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [selectedContent, setSelectedContent] = useState<ContentIcon | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [previousPercentage, setPreviousPercentage] = useState(0);
 
   // Get employee data from sessionStorage
   useEffect(() => {
@@ -29,8 +33,39 @@ export default function UserDashboard() {
     queryKey: ["/api/content-icons"],
   });
 
+  // Fetch progress summary
+  const { data: progressSummary, refetch: refetchProgress } = useQuery<{
+    completed: number;
+    total: number;
+    percentage: number;
+  }>({
+    queryKey: [`/api/progress-summary/${currentEmployee?.id}`],
+    enabled: !!currentEmployee?.id,
+  });
+
+  // Fetch user progress details
+  const { data: userProgress = [] } = useQuery<any[]>({
+    queryKey: [`/api/progress/${currentEmployee?.id}`],
+    enabled: !!currentEmployee?.id,
+  });
+
   // Sort content icons by display order
   const contentIcons = contentIconsData.sort((a, b) => a.displayOrder - b.displayOrder);
+
+  // Check for completion celebration
+  useEffect(() => {
+    if (progressSummary && progressSummary.percentage === 100 && previousPercentage < 100) {
+      setShowCelebration(true);
+    }
+    if (progressSummary) {
+      setPreviousPercentage(progressSummary.percentage);
+    }
+  }, [progressSummary?.percentage, previousPercentage]);
+
+  // Function to check if content is completed
+  const isContentCompleted = (contentId: string) => {
+    return userProgress.some(p => p.contentId === contentId && p.completed === 1);
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem("currentEmployee");
@@ -152,6 +187,33 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
 
+        {/* Progress Card */}
+        {progressSummary && (
+          <Card className="glass-card mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 brand-navy">
+                <Trophy className="h-5 w-5" />
+                진행 상황
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">전체 진행률</span>
+                  <span className="text-sm font-bold brand-navy" data-testid="text-progress-percentage">
+                    {progressSummary.percentage}%
+                  </span>
+                </div>
+                <Progress value={progressSummary.percentage} className="w-full" data-testid="progress-bar" />
+                <div className="flex justify-between items-center text-sm text-gray-600">
+                  <span>완료: {progressSummary.completed}</span>
+                  <span>전체: {progressSummary.total}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Onboarding Curriculum */}
         <Card className="glass-card">
           <CardHeader>
@@ -167,31 +229,39 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6" data-testid="content-grid">
-                {contentIcons.map((content, index) => (
-                  <div key={content.id} className="flex items-center">
-                    <div
-                      className="content-icon cursor-pointer group"
-                      onClick={() => handleContentClick(content)}
-                      data-testid={`content-icon-${content.id}`}
-                    >
-                      <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105">
-                        <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden`}>
-                          {content.iconImage ? (
-                            <img src={content.iconImage} alt={content.iconTitle} className="w-full h-full object-cover rounded-xl" />
-                          ) : (
-                            getContentTypeIcon(content.contentType)
-                          )}
+                {contentIcons.map((content, index) => {
+                  const isCompleted = isContentCompleted(content.id);
+                  return (
+                    <div key={content.id} className="flex items-center">
+                      <div
+                        className="content-icon cursor-pointer group relative"
+                        onClick={() => handleContentClick(content)}
+                        data-testid={`content-icon-${content.id}`}
+                      >
+                        <div className={`bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105 ${isCompleted ? 'ring-2 ring-green-500' : ''}`}>
+                          <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden relative`}>
+                            {content.iconImage ? (
+                              <img src={content.iconImage} alt={content.iconTitle} className="w-full h-full object-cover rounded-xl" />
+                            ) : (
+                              getContentTypeIcon(content.contentType)
+                            )}
+                            {isCompleted && (
+                              <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1">
+                                <CheckCircle2 className="h-4 w-4 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <h3 className={`text-sm font-medium text-center ${isCompleted ? 'text-green-700' : 'text-gray-900'}`} data-testid={`text-content-title-${content.id}`}>
+                            {content.iconTitle}
+                          </h3>
                         </div>
-                        <h3 className="text-sm font-medium text-gray-900 text-center" data-testid={`text-content-title-${content.id}`}>
-                          {content.iconTitle}
-                        </h3>
                       </div>
+                      {index < contentIcons.length - 1 && (
+                        <ChevronRight className={`h-6 w-6 mx-2 flex-shrink-0 ${isCompleted ? 'text-green-500' : 'text-gray-400'}`} />
+                      )}
                     </div>
-                    {index < contentIcons.length - 1 && (
-                      <ChevronRight className="h-6 w-6 text-gray-400 mx-2 flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -199,12 +269,47 @@ export default function UserDashboard() {
       </div>
 
       {/* Content Viewer Modal */}
-      {selectedContent && (
+      {selectedContent && currentEmployee && (
         <ContentViewer
           content={selectedContent}
+          employeeId={currentEmployee.id}
           onClose={() => setSelectedContent(null)}
+          onComplete={() => {
+            // Refresh progress data
+            refetchProgress();
+          }}
         />
       )}
+
+      {/* Celebration Modal for 100% Completion */}
+      <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center gap-2 text-2xl">
+              <Sparkles className="h-8 w-8 text-yellow-500" />
+              축하합니다!
+              <Sparkles className="h-8 w-8 text-yellow-500" />
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-blue-900 mb-2">
+              Welcome Cushman & Wakefield!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              온보딩 과정을 모두 완료하셨습니다.<br />
+              C&W Korea의 새로운 가족이 되신 것을 환영합니다!
+            </p>
+            <Button
+              onClick={() => setShowCelebration(false)}
+              className="bg-blue-900 hover:bg-blue-800 text-white px-8 py-2"
+              data-testid="button-close-celebration"
+            >
+              확인
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

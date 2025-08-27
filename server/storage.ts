@@ -1,6 +1,6 @@
-import { employees, contentIcons, admins, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin } from "@shared/schema";
+import { employees, contentIcons, admins, contentImages, userProgress, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress } from "@shared/schema";
 import { db } from "./db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -27,6 +27,17 @@ export interface IStorage {
   updateContentIcon(id: string, contentIcon: Partial<InsertContentIcon>): Promise<ContentIcon>;
   deleteContentIcon(id: string): Promise<void>;
   getAllContentIcons(): Promise<ContentIcon[]>;
+  
+  // Content Images methods
+  getContentImages(contentId: string): Promise<ContentImage[]>;
+  createContentImage(contentImage: InsertContentImage): Promise<ContentImage>;
+  deleteContentImages(contentId: string): Promise<void>;
+  
+  // User Progress methods
+  getUserProgress(employeeId: string): Promise<UserProgress[]>;
+  getContentProgress(employeeId: string, contentId: string): Promise<UserProgress | undefined>;
+  createOrUpdateProgress(progress: InsertUserProgress): Promise<UserProgress>;
+  getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number }>;
   
   sessionStore: session.Store;
 }
@@ -125,6 +136,76 @@ export class DatabaseStorage implements IStorage {
 
   async getAllContentIcons(): Promise<ContentIcon[]> {
     return await db.select().from(contentIcons).orderBy(asc(contentIcons.displayOrder));
+  }
+
+  // Content Images methods
+  async getContentImages(contentId: string): Promise<ContentImage[]> {
+    return await db.select().from(contentImages)
+      .where(eq(contentImages.contentId, contentId))
+      .orderBy(asc(contentImages.imageOrder));
+  }
+
+  async createContentImage(insertContentImage: InsertContentImage): Promise<ContentImage> {
+    const [contentImage] = await db
+      .insert(contentImages)
+      .values(insertContentImage)
+      .returning();
+    return contentImage;
+  }
+
+  async deleteContentImages(contentId: string): Promise<void> {
+    await db.delete(contentImages).where(eq(contentImages.contentId, contentId));
+  }
+
+  // User Progress methods
+  async getUserProgress(employeeId: string): Promise<UserProgress[]> {
+    return await db.select().from(userProgress)
+      .where(eq(userProgress.employeeId, employeeId));
+  }
+
+  async getContentProgress(employeeId: string, contentId: string): Promise<UserProgress | undefined> {
+    const [progress] = await db.select().from(userProgress)
+      .where(and(
+        eq(userProgress.employeeId, employeeId),
+        eq(userProgress.contentId, contentId)
+      ));
+    return progress || undefined;
+  }
+
+  async createOrUpdateProgress(progressData: InsertUserProgress): Promise<UserProgress> {
+    const existing = await this.getContentProgress(progressData.employeeId, progressData.contentId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(userProgress)
+        .set({
+          completed: progressData.completed,
+          completedAt: progressData.completed === 1 ? new Date() : null,
+        })
+        .where(eq(userProgress.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userProgress)
+        .values({
+          ...progressData,
+          completedAt: progressData.completed === 1 ? new Date() : null,
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number }> {
+    const allContent = await this.getAllContentIcons();
+    const userProgressData = await this.getUserProgress(employeeId);
+    
+    const total = allContent.length;
+    const completed = userProgressData.filter(p => p.completed === 1).length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return { completed, total, percentage };
   }
 }
 
