@@ -69,8 +69,8 @@ export default function AuthPage() {
       <Card className="w-full max-w-md glass-card">
         <CardContent className="pt-6">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">WELCOME</h1>
-            <h2 className="text-2xl font-bold brand-navy mb-4">C&W KOREA</h2>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2"></h1>
+            <h2 className="text-2xl font-bold brand-navy mb-4"></h2>
             <p className="text-gray-600"></p>
           </div>
 
@@ -112,10 +112,10 @@ export default function AuthPage() {
 
           <div className="mt-6 pt-6 border-t border-gray-200 text-center">
             <div className="flex items-center justify-center space-x-2">
-              <Building className="h-4 w-4 brand-red" />
-              <span className="text-sm font-semibold text-gray-700">CUSHMAN & WAKEFIELD</span>
+              
+              <span className="text-sm font-semibold text-gray-700"></span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Better never settles</p>
+            <p className="text-xs text-gray-500 mt-1"></p>
           </div>
         </CardContent>
       </Card>
