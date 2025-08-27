@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -47,7 +47,10 @@ export const userProgress = pgTable("user_progress", {
   completed: integer("completed").default(0), // 0 = not started, 1 = completed
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // Ensure unique constraint on employee-content combination
+  uniqueEmployeeContent: uniqueIndex("unique_employee_content").on(table.employeeId, table.contentId),
+}));
 
 export const insertAdminSchema = createInsertSchema(admins).pick({
   username: true,

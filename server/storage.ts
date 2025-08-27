@@ -1,6 +1,6 @@
 import { employees, contentIcons, admins, contentImages, userProgress, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress } from "@shared/schema";
 import { db } from "./db";
-import { eq, asc, and } from "drizzle-orm";
+import { eq, asc, and, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -209,7 +209,33 @@ export class DatabaseStorage implements IStorage {
     return { completed, total, percentage };
   }
 
+  async cleanupDuplicateProgress(): Promise<void> {
+    // Get all progress records
+    const allProgress = await db.select().from(userProgress);
+    const seen = new Set<string>();
+    const duplicateIds: string[] = [];
+    
+    // Identify duplicates based on employeeId + contentId combination
+    for (const progress of allProgress) {
+      const key = `${progress.employeeId}-${progress.contentId}`;
+      if (seen.has(key)) {
+        duplicateIds.push(progress.id);
+      } else {
+        seen.add(key);
+      }
+    }
+    
+    // Delete duplicate records
+    if (duplicateIds.length > 0) {
+      await db.delete(userProgress).where(sql`id = ANY(${duplicateIds})`);
+      console.log(`Cleaned up ${duplicateIds.length} duplicate progress records`);
+    }
+  }
+
   async toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }> {
+    // Clean up any existing duplicates first
+    await this.cleanupDuplicateProgress();
+    
     const existing = await this.getContentProgress(employeeId, contentId);
     
     let newCompletedValue: number;
