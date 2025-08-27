@@ -175,7 +175,7 @@ export default function UserDashboard() {
                       data-testid={`content-icon-${content.id}`}
                     >
                       <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105">
-                        <div className={`w-16 h-16 ${getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-2xl overflow-hidden`}>
+                        <div className={`w-16 h-16 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-2xl overflow-hidden`}>
                           {content.iconImage ? (
                             <img src={content.iconImage} alt={content.iconTitle} className="w-full h-full object-cover rounded-xl" />
                           ) : (
