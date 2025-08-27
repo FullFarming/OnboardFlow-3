@@ -297,14 +297,16 @@ export default function UserDashboard() {
                           <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden relative`}>
                             {content.iconImage ? (
                               <img 
-                                src={content.iconImage.startsWith('/uploads') ? content.iconImage : `/uploads/${content.iconImage}`} 
+                                src={content.iconImage.startsWith('/uploads') ? content.iconImage : content.iconImage.startsWith('http') ? content.iconImage : `/uploads/${content.iconImage}`} 
                                 alt={content.iconTitle} 
                                 className="w-full h-full object-cover rounded-xl"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.style.display = 'none';
                                   // Show fallback icon instead
-                                  target.parentElement!.innerHTML = `<span class="text-4xl">${getContentTypeIcon(content.contentType)}</span>`;
+                                  const parent = target.parentElement!;
+                                  parent.innerHTML = `<span class="text-4xl">${getContentTypeIcon(content.contentType)}</span>`;
+                                  parent.className = parent.className.replace('bg-transparent', getContentTypeColor(content.contentType));
                                 }}
                               />
                             ) : (

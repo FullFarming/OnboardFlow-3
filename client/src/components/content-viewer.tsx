@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,7 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
 
   // Mark content as completed
   const completionMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/progress`, "POST", {
+    mutationFn: () => apiRequest("POST", "/api/progress", {
       employeeId,
       contentId: content.id,
       completed: 1,
@@ -102,24 +102,32 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
           ? currentImage.imageUrl 
           : currentImage.imageUrl.startsWith('http') 
             ? currentImage.imageUrl 
-            : `/uploads/${currentImage.imageUrl}`;
+            : currentImage.imageUrl.length > 0 
+              ? `/uploads/${currentImage.imageUrl}`
+              : '';
         
         return (
           <div className="w-full">
             <div className="relative">
-              <img
-                src={imageUrl}
-                alt={`${content.iconTitle} - ${currentImageIndex + 1}`}
-                className="w-full h-auto rounded-lg shadow-lg"
-                onError={(e) => {
-                  console.error('이미지 로드 실패:', imageUrl);
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-                onLoad={() => {
-                  console.log('이미지 로드 성공:', imageUrl);
-                }}
-              />
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={`${content.iconTitle} - ${currentImageIndex + 1}`}
+                  className="w-full h-auto rounded-lg shadow-lg"
+                  onError={(e) => {
+                    console.error('이미지 로드 실패:', imageUrl);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('이미지 로드 성공:', imageUrl);
+                  }}
+                />
+              ) : (
+                <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <span className="text-gray-500">이미지를 찾을 수 없습니다</span>
+                </div>
+              )}
               
               {/* Multi-image navigation */}
               {allImages.length > 1 && (
@@ -197,6 +205,9 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
               {content.iconTitle}
               {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-500" />}
             </DialogTitle>
+            <DialogDescription>
+              {content.contentType} 콘텐츠를 확인하고 학습을 진행하세요.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="overflow-y-auto max-h-[calc(90vh-120px)]" data-testid="content-modal-body">
@@ -232,6 +243,9 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>콘텐츠 완료</DialogTitle>
+            <DialogDescription>
+              선택한 콘텐츠의 학습 완료 상태를 변경할 수 있습니다.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-600 mb-4">
