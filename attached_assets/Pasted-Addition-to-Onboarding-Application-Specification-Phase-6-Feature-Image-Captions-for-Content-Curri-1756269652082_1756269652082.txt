@@ -1,0 +1,91 @@
+Addition to Onboarding Application Specification (Phase 6)
+Feature: Image Captions for Content Curriculum
+Objective: To enable administrators to add a descriptive text caption to each individual image, whether it's a single-image content item or part of a multi-image slideshow. This caption will then be displayed to the user along with the corresponding image.
+
+1. Admin Panel Modifications
+1.1. UI/UX Changes in Content Management
+The "Create New Content" form must be updated to include text input fields for captions.
+
+For Image Content Type:
+
+When an admin uploads a single image, a new text field must appear directly below the file upload area.
+
+Component: A <textarea> is recommended for multi-line descriptions.
+
+Label: "Image Caption"
+
+Placeholder Text: "Enter a description for the image..."
+
+For Image Slideshow Content Type:
+
+The image preview area, which appears after files are selected, must be redesigned.
+
+For each image thumbnail displayed in the preview area, there must be an associated and distinct caption input field placed directly beside or below it.
+
+The structure for each item in the preview list should be: [Image Thumbnail] + [Caption Text Input/Textarea] + [Delete Button].
+
+The drag-and-drop reordering functionality must be applied to this entire block, ensuring that when an image is moved, its corresponding caption field moves with it, maintaining the correct pairing.
+
+1.2. Data Structure Modification (Backend & Database)
+The structure of the contentSource field in the Content database table must be updated to store both the image URL and its caption.
+
+For Image Content Type:
+
+Current Structure: A simple string URL.
+
+"contentSource": "/uploads/company_building.jpg"
+New Structure: A JSON object containing url and caption keys.
+
+JSON
+
+{
+  "contentSource": {
+    "url": "/uploads/company_building.jpg",
+    "caption": "This is our main office building located in Seoul."
+  }
+}
+For Image Slideshow Content Type:
+
+Current Structure: An array of string URLs.
+
+"contentSource": [
+  "/uploads/slide1.jpg",
+  "/uploads/slide2.jpg"
+]
+New Structure: An array of JSON objects, where each object has url and caption keys.
+
+JSON
+
+{
+  "contentSource": [
+    {
+      "url": "/uploads/slide1.jpg",
+      "caption": "Step 1: Please sign the required HR documents."
+    },
+    {
+      "url": "/uploads/slide2.jpg",
+      "caption": "Step 2: Your buddy will give you a tour of the office."
+    }
+  ]
+}
+2. User-Side Modifications
+2.1. Content Viewer Component Update
+The component that displays images and slideshows to the end-user must be updated to render the new caption data.
+
+For Image Content Viewer:
+
+The viewer will fetch the content object ({url, caption}).
+
+It will render the image using the url property.
+
+Directly below the image, it will render the text from the caption property.
+
+Styling: The caption text should be styled for clear readability (e.g., centered, slightly smaller font size than body text, with adequate spacing from the image).
+
+For Image Slideshow Viewer:
+
+The viewer will fetch the array of content objects ([{url, caption}, {url, caption}, ...]).
+
+The slideshow logic will be updated. When displaying the image at index, it must also display the caption from the object at that same index.
+
+Dynamic Update: As the user clicks the "Next" and "Previous" navigation buttons, both the displayed image and the caption text below it must change simultaneously to reflect the current item in the array.

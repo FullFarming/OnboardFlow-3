@@ -129,6 +129,31 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
                 </div>
               )}
               
+              {/* Image Caption */}
+              {(() => {
+                let caption = "";
+                
+                // For single Image content, check if contentSource has caption data
+                if (content.contentType === "Image" && contentImages.length === 0) {
+                  try {
+                    const parsed = JSON.parse(content.contentSource);
+                    caption = parsed.caption || "";
+                  } catch {
+                    // No caption data
+                  }
+                }
+                // For Image Slideshow or multi-image content, get caption from current image
+                else if (currentImage?.imageCaption) {
+                  caption = currentImage.imageCaption;
+                }
+                
+                return caption ? (
+                  <div className="mt-3 px-4 py-2 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-700 text-center">{caption}</p>
+                  </div>
+                ) : null;
+              })()}
+
               {/* Multi-image navigation */}
               {allImages.length > 1 && (
                 <div className="flex justify-between items-center mt-4">

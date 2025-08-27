@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,7 @@ import Sortable from "sortablejs";
 interface MultiImageItem {
   file: File;
   preview: string;
+  caption: string;
   order: number;
 }
 
@@ -22,6 +24,7 @@ export default function UploadForm() {
   const [contentType, setContentType] = useState("");
   const [iconImageFile, setIconImageFile] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
+  const [imageCaption, setImageCaption] = useState(""); // For single image caption
   const [multiImages, setMultiImages] = useState<MultiImageItem[]>([]);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -45,6 +48,7 @@ export default function UploadForm() {
           const imageFormData = new FormData();
           multiImages.forEach((item) => {
             imageFormData.append('images', item.file);
+            imageFormData.append('captions', item.caption);
           });
           imageFormData.append('contentId', newContent.id);
           
@@ -86,6 +90,16 @@ export default function UploadForm() {
       formData.append("contentFile", contentFile);
     }
 
+    // For Image content type, append caption to contentSource
+    if (contentType === "Image" && contentFile && imageCaption) {
+      // Override contentSource with JSON structure
+      const contentWithCaption = JSON.stringify({
+        url: formData.get("contentSource") || "",
+        caption: imageCaption
+      });
+      formData.set("contentSource", contentWithCaption);
+    }
+
     addContentMutation.mutate(formData);
     
     // Reset form
@@ -93,6 +107,7 @@ export default function UploadForm() {
     setContentType("");
     setIconImageFile(null);
     setContentFile(null);
+    setImageCaption("");
     setMultiImages([]);
   };
 
@@ -116,6 +131,7 @@ export default function UploadForm() {
           const newImage: MultiImageItem = {
             file,
             preview,
+            caption: "", // Default empty caption
             order: multiImages.length + index + 1,
           };
           setMultiImages(prev => [...prev, newImage].map((item, i) => ({
@@ -159,6 +175,12 @@ export default function UploadForm() {
       [newArray[index], newArray[index + 1]] = [newArray[index + 1], newArray[index]];
       return newArray.map((item, i) => ({ ...item, order: i + 1 }));
     });
+  };
+
+  const updateImageCaption = (index: number, caption: string) => {
+    setMultiImages(prev => 
+      prev.map((item, i) => i === index ? { ...item, caption } : item)
+    );
   };
 
   // Initialize Sortable for drag-and-drop reordering
@@ -339,6 +361,25 @@ export default function UploadForm() {
             </div>
           </div>
 
+          {/* Image Caption for Single Image Content Type */}
+          {contentType === "Image" && contentFile && (
+            <div className="space-y-2">
+              <Label className="block text-sm font-medium text-gray-700">
+                이미지 캡션
+              </Label>
+              <Textarea
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+                placeholder="이미지에 대한 설명을 입력하세요..."
+                className="min-h-[80px] resize-none"
+                data-testid="textarea-image-caption"
+              />
+              <p className="text-xs text-gray-500">
+                사용자에게 이미지와 함께 표시될 설명입니다.
+              </p>
+            </div>
+          )}
+
           {/* Multi-Image Upload for Image Slideshow Content Type */}
           {contentType === "Image Slideshow" && (
             <div className="space-y-4">
@@ -423,14 +464,30 @@ export default function UploadForm() {
                             />
                           </div>
                           
-                          {/* File Info */}
-                          <div className="p-2">
-                            <p className="text-xs text-gray-600 truncate">
-                              {item.file.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {(item.file.size / 1024).toFixed(1)} KB
-                            </p>
+                          {/* File Info and Caption */}
+                          <div className="p-2 space-y-2">
+                            <div>
+                              <p className="text-xs text-gray-600 truncate">
+                                {item.file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(item.file.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                            
+                            {/* Caption input */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium text-gray-600">
+                                캡션
+                              </Label>
+                              <Textarea
+                                value={item.caption}
+                                onChange={(e) => updateImageCaption(index, e.target.value)}
+                                placeholder="이미지 설명..."
+                                className="min-h-[50px] resize-none text-xs"
+                                data-testid={`textarea-multi-image-caption-${index}`}
+                              />
+                            </div>
                           </div>
                           
                           {/* Drag Handle Indicator */}

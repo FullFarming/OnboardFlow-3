@@ -35,6 +35,7 @@ export const contentImages = pgTable("content_images", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contentId: varchar("content_id").notNull(),
   imageUrl: text("image_url").notNull(),
+  imageCaption: text("image_caption").default(""), // New field for captions
   imageOrder: integer("image_order").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -79,6 +80,7 @@ export const insertContentIconSchema = createInsertSchema(contentIcons).pick({
 export const insertContentImageSchema = createInsertSchema(contentImages).pick({
   contentId: true,
   imageUrl: true,
+  imageCaption: true,
   imageOrder: true,
 });
 
