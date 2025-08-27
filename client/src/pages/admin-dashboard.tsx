@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload } from "lucide-react";
@@ -19,6 +20,7 @@ export default function AdminDashboard() {
   const { logoutMutation } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("users");
+  const [editingContent, setEditingContent] = useState<ContentIcon | null>(null);
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
@@ -72,6 +74,27 @@ export default function AdminDashboard() {
     },
   });
 
+  const updateContentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: FormData }) => {
+      const response = await fetch(`/api/content-icons/${id}`, {
+        method: "PUT",
+        body: data,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update content");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/content-icons"] });
+      toast({ title: "콘텐츠가 성공적으로 수정되었습니다." });
+      setEditingContent(null);
+    },
+    onError: () => {
+      toast({ title: "콘텐츠 수정 실패", variant: "destructive" });
+    },
+  });
+
   const handleEmployeeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -99,6 +122,16 @@ export default function AdminDashboard() {
       case "Link": return "🔗";
       default: return "📁";
     }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingContent) return;
+    
+    const formElement = e.currentTarget;
+    const formData = new FormData(formElement);
+    
+    updateContentMutation.mutate({ id: editingContent.id, data: formData });
   };
 
   return (
@@ -162,7 +195,7 @@ export default function AdminDashboard() {
                       name="userName"
                       required
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-user-name"
                     />
                     <Label className="form-label">사용자명 (로그인 ID)</Label>
@@ -174,7 +207,7 @@ export default function AdminDashboard() {
                       required
                       maxLength={4}
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-user-password"
                     />
                     <Label className="form-label">휴대폰 뒷 4자리</Label>
@@ -185,7 +218,7 @@ export default function AdminDashboard() {
                       type="email"
                       required
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-user-email"
                     />
                     <Label className="form-label">이메일</Label>
@@ -195,7 +228,7 @@ export default function AdminDashboard() {
                       name="buddyName"
                       required
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-buddy-name"
                     />
                     <Label className="form-label">버디명</Label>
@@ -205,7 +238,7 @@ export default function AdminDashboard() {
                       name="lockerNumber"
                       required
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-locker-number"
                     />
                     <Label className="form-label">사물함 번호</Label>
@@ -215,7 +248,7 @@ export default function AdminDashboard() {
                       name="laptopInfo"
                       required
                       className="form-input peer"
-                      placeholder=" "
+                      placeholder=""
                       data-testid="input-laptop-info"
                     />
                     <Label className="form-label">노트북 정보</Label>
@@ -332,6 +365,7 @@ export default function AdminDashboard() {
                                 variant="ghost"
                                 size="sm"
                                 className="text-brand-blue hover:text-blue-800"
+                                onClick={() => setEditingContent(content)}
                                 data-testid={`button-edit-content-${content.id}`}
                               >
                                 <Edit className="h-4 w-4" />
@@ -363,6 +397,90 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Content Modal */}
+      {editingContent && (
+        <Dialog open={true} onOpenChange={() => setEditingContent(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>콘텐츠 수정</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input
+                    name="iconTitle"
+                    required
+                    defaultValue={editingContent.iconTitle}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-icon-title"
+                  />
+                  <Label className="form-label">아이콘 제목</Label>
+                </div>
+                <div className="relative">
+                  <Select name="contentType" required defaultValue={editingContent.contentType}>
+                    <SelectTrigger className="form-input pt-3" data-testid="select-edit-content-type">
+                      <SelectValue placeholder="선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Link">링크</SelectItem>
+                      <SelectItem value="Video">비디오</SelectItem>
+                      <SelectItem value="Image">이미지</SelectItem>
+                      <SelectItem value="PDF">PDF</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Label className="form-label">콘텐츠 타입</Label>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Input
+                  name="contentSource"
+                  defaultValue={editingContent.contentSource}
+                  className="form-input peer"
+                  placeholder=""
+                  data-testid="input-edit-content-source"
+                />
+                <Label className="form-label">콘텐츠 소스 (URL)</Label>
+              </div>
+
+              <div className="relative w-32">
+                <Input
+                  name="displayOrder"
+                  type="number"
+                  required
+                  min="1"
+                  defaultValue={editingContent.displayOrder}
+                  className="form-input peer"
+                  placeholder=""
+                  data-testid="input-edit-display-order"
+                />
+                <Label className="form-label">표시 순서</Label>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingContent(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-brand-navy hover:bg-blue-800 text-white"
+                  disabled={updateContentMutation.isPending}
+                  data-testid="button-save-edit"
+                >
+                  수정 완료
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

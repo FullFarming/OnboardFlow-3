@@ -51,6 +51,16 @@ export default function ContentViewer({ content, onClose }: ContentViewerProps) 
           </div>
         );
 
+      case "Link":
+        // Auto-redirect for links
+        window.open(content.contentSource, "_blank");
+        return (
+          <div className="text-center py-12">
+            <ExternalLink className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">링크로 이동 중...</p>
+          </div>
+        );
+
       default:
         return (
           <div className="text-center py-12">

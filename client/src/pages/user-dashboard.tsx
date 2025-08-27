@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Inbox, Laptop, Users, Key, GraduationCap, LogOut } from "lucide-react";
+import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -25,9 +25,12 @@ export default function UserDashboard() {
   }, [setLocation]);
 
   // Fetch content icons
-  const { data: contentIcons = [] } = useQuery<ContentIcon[]>({
+  const { data: contentIconsData = [] } = useQuery<ContentIcon[]>({
     queryKey: ["/api/content-icons"],
   });
+
+  // Sort content icons by display order
+  const contentIcons = contentIconsData.sort((a, b) => a.displayOrder - b.displayOrder);
 
   const handleLogout = () => {
     sessionStorage.removeItem("currentEmployee");
@@ -163,26 +166,33 @@ export default function UserDashboard() {
                 온보딩 콘텐츠가 준비 중입니다.
               </div>
             ) : (
-              <div className="content-grid" data-testid="content-grid">
-                {contentIcons.map((content) => (
-                  <div
-                    key={content.id}
-                    className="content-icon cursor-pointer group"
-                    onClick={() => handleContentClick(content)}
-                    data-testid={`content-icon-${content.id}`}
-                  >
-                    <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105">
-                      <div className={`w-16 h-16 ${getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-2xl`}>
-                        {content.iconImage ? (
-                          <img src={content.iconImage} alt={content.iconTitle} className="w-8 h-8 object-contain" />
-                        ) : (
-                          getContentTypeIcon(content.contentType)
-                        )}
+              <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6" data-testid="content-grid">
+                {contentIcons.map((content, index) => (
+                  <div key={content.id} className="flex items-center">
+                    <div
+                      className="content-icon cursor-pointer group"
+                      onClick={() => handleContentClick(content)}
+                      data-testid={`content-icon-${content.id}`}
+                    >
+                      <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105">
+                        <div className={`w-16 h-16 ${getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-2xl`}>
+                          {content.iconImage ? (
+                            <img src={content.iconImage} alt={content.iconTitle} className="w-8 h-8 object-contain" />
+                          ) : (
+                            getContentTypeIcon(content.contentType)
+                          )}
+                        </div>
+                        <h3 className="text-sm font-medium text-gray-900 text-center" data-testid={`text-content-title-${content.id}`}>
+                          {content.iconTitle}
+                        </h3>
+                        <div className="text-xs text-center text-gray-500 mt-1">
+                          {content.displayOrder}
+                        </div>
                       </div>
-                      <h3 className="text-sm font-medium text-gray-900 text-center" data-testid={`text-content-title-${content.id}`}>
-                        {content.iconTitle}
-                      </h3>
                     </div>
+                    {index < contentIcons.length - 1 && (
+                      <ChevronRight className="h-6 w-6 text-gray-400 mx-2 flex-shrink-0" />
+                    )}
                   </div>
                 ))}
               </div>

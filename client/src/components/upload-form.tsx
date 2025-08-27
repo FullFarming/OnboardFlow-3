@@ -85,7 +85,7 @@ export default function UploadForm() {
                 name="iconTitle"
                 required
                 className="form-input peer"
-                placeholder=" "
+                placeholder=""
                 data-testid="input-icon-title"
               />
               <Label className="form-label">아이콘 제목</Label>
@@ -159,8 +159,8 @@ export default function UploadForm() {
                       name="contentSource"
                       type="url"
                       required
-                      className="form-input"
-                      placeholder=" "
+                      className="form-input peer"
+                      placeholder=""
                       data-testid="input-content-source"
                     />
                     <Label className="form-label">URL을 입력하세요</Label>
@@ -170,8 +170,8 @@ export default function UploadForm() {
                     <div className="relative">
                       <Input
                         name="contentSource"
-                        className="form-input"
-                        placeholder=" "
+                        className="form-input peer"
+                        placeholder=""
                         data-testid="input-content-source"
                       />
                       <Label className="form-label">URL (선택사항)</Label>
@@ -214,8 +214,8 @@ export default function UploadForm() {
               type="number"
               required
               min="1"
-              className="form-input"
-              placeholder=" "
+              className="form-input peer"
+              placeholder=""
               data-testid="input-display-order"
             />
             <Label className="form-label">표시 순서</Label>
