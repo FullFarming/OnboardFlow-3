@@ -43,27 +43,11 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      try {
-        console.log(`로그인 시도: username=${username}`);
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          console.log(`사용자를 찾을 수 없음: ${username}`);
-          return done(null, false, { message: '사용자를 찾을 수 없습니다.' });
-        }
-        
-        const passwordMatch = await comparePasswords(password, user.password);
-        console.log(`비밀번호 확인 결과: ${passwordMatch}`);
-        
-        if (!passwordMatch) {
-          console.log(`비밀번호가 일치하지 않음: ${username}`);
-          return done(null, false, { message: '비밀번호가 올바르지 않습니다.' });
-        }
-        
-        console.log(`로그인 성공: ${username}`);
+      const user = await storage.getUserByUsername(username);
+      if (!user || !(await comparePasswords(password, user.password))) {
+        return done(null, false);
+      } else {
         return done(null, user);
-      } catch (error) {
-        console.error('로그인 처리 중 오류:', error);
-        return done(error);
       }
     }),
   );
@@ -91,26 +75,8 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", (req, res, next) => {
-    console.log('로그인 요청 받음:', req.body);
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) {
-        console.error('로그인 인증 오류:', err);
-        return res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다." });
-      }
-      if (!user) {
-        console.log('로그인 실패:', info?.message || '알 수 없는 오류');
-        return res.status(401).json({ error: info?.message || "로그인에 실패했습니다." });
-      }
-      req.logIn(user, (err) => {
-        if (err) {
-          console.error('세션 생성 오류:', err);
-          return res.status(500).json({ error: "세션 생성 중 오류가 발생했습니다." });
-        }
-        console.log('로그인 성공:', user.username);
-        res.status(200).json(user);
-      });
-    })(req, res, next);
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    res.status(200).json(req.user);
   });
 
   app.post("/api/logout", (req, res, next) => {
