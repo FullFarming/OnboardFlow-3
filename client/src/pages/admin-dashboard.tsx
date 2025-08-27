@@ -119,6 +119,7 @@ export default function AdminDashboard() {
       case "Video": return "🎥";
       case "PDF": return "📄";
       case "Image": return "🖼️";
+      case "Image Slideshow": return "🎠";
       case "Link": return "🔗";
       default: return "📁";
     }
@@ -427,6 +428,7 @@ export default function AdminDashboard() {
                       <SelectItem value="Link">링크</SelectItem>
                       <SelectItem value="Video">비디오</SelectItem>
                       <SelectItem value="Image">이미지</SelectItem>
+                      <SelectItem value="Image Slideshow">이미지 슬라이드쇼</SelectItem>
                       <SelectItem value="PDF">PDF</SelectItem>
                     </SelectContent>
                   </Select>

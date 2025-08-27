@@ -263,6 +263,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle completion status
+  app.post("/api/content/toggle-completion", async (req, res) => {
+    try {
+      const { contentId, employeeId } = req.body;
+      
+      if (!contentId || !employeeId) {
+        return res.status(400).json({ error: "contentId and employeeId are required" });
+      }
+
+      const result = await storage.toggleContentCompletion(employeeId, contentId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error toggling content completion:", error);
+      res.status(500).json({ error: "Failed to toggle content completion" });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {
     const filePath = path.join(uploadDir, req.path);

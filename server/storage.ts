@@ -38,6 +38,7 @@ export interface IStorage {
   getContentProgress(employeeId: string, contentId: string): Promise<UserProgress | undefined>;
   createOrUpdateProgress(progress: InsertUserProgress): Promise<UserProgress>;
   getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number }>;
+  toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }>;
   
   sessionStore: session.Store;
 }
@@ -206,6 +207,30 @@ export class DatabaseStorage implements IStorage {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return { completed, total, percentage };
+  }
+
+  async toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }> {
+    const existing = await this.getContentProgress(employeeId, contentId);
+    
+    let newCompletedValue: number;
+    if (existing) {
+      // Toggle the existing completion status
+      newCompletedValue = existing.completed === 1 ? 0 : 1;
+    } else {
+      // No existing record, mark as completed
+      newCompletedValue = 1;
+    }
+    
+    const progress = await this.createOrUpdateProgress({
+      employeeId,
+      contentId,
+      completed: newCompletedValue,
+    });
+    
+    return {
+      completed: newCompletedValue === 1,
+      progress,
+    };
   }
 }
 

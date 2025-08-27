@@ -1,0 +1,131 @@
+Revisions to Onboarding Web Application Specification (Phase 3)
+This document details the implementation of two new features:
+
+User-Side: A tracking mechanism to mark onboarding curriculum icons as "completed."
+
+Admin-Side: A new content type, "Image Slideshow," allowing admins to upload multiple images for a single curriculum item and set their display order.
+
+1. Feature: Curriculum Completion Tracking (User-Side)
+Objective: Provide users with a visual indicator to track which onboarding items they have completed. Clicking an icon should toggle its completion status.
+
+1.1. Data Model / Database Schema Modification
+A new table or collection is required to track the completion status for each user and each content item. This prevents one user's progress from affecting another's.
+
+UserContentCompletion Table/Collection:
+
+userId: Foreign Key referencing the Users table.
+
+contentId: Foreign Key referencing the Content table.
+
+isCompleted: (Boolean) true or false. Default: false.
+
+completedAt: (Timestamp) Records when the item was marked as complete.
+
+1.2. Backend API Endpoint
+A new API route is needed to handle the toggling of the completion status.
+
+Endpoint: POST /api/content/toggle-completion
+
+Request Body:
+
+JSON
+
+{
+    "contentId": "the_id_of_the_content_item"
+}
+Logic:
+
+The endpoint must be protected; only an authenticated user can call it. The userId will be extracted from the user's JWT token.
+
+Find the UserContentCompletion record where userId and contentId match the request.
+
+If a record exists, update isCompleted to its opposite value ( true -> false, false -> true).
+
+If no record exists, create a new record with the userId, contentId, and set isCompleted to true.
+
+Return the new completion status to the client.
+
+1.3. Frontend (User Dashboard) Implementation
+Initial Data Fetch: When the user's dashboard loads, the API call that fetches the curriculum icons must also fetch the user's completion data for those icons. The server should join the Content and UserContentCompletion data.
+
+Visual Indication:
+
+Each curriculum icon component will have a "completed" state.
+
+If an icon's isCompleted status is true, a visual indicator must be displayed. This could be:
+
+A semi-transparent dark overlay on the icon.
+
+A checkmark icon (✓) in the corner of the curriculum icon.
+
+Reduced opacity for the entire icon (opacity: 0.6;).
+
+Interaction Logic (JavaScript):
+
+An onClick event handler will be attached to each curriculum icon.
+
+When an icon is clicked, the application will first call the POST /api/content/toggle-completion endpoint with the contentId.
+
+Upon a successful response from the API, the frontend will update the UI in real-time to show/hide the completion checkmark.
+
+After toggling the status, the application will proceed to open the content itself (link, video, PDF, or the new slideshow).
+
+2. Feature: Multi-Image Slideshow (Admin & User Side)
+Objective: Empower admins to create a single curriculum item that consists of multiple images, which the user can view in a sequential, slideshow format.
+
+2.1. Admin Panel: Content Management Modification
+"Create New Content" Form:
+
+Content Type Dropdown: Add a new option: Image Slideshow.
+
+Dynamic UI Change: When Image Slideshow is selected from the dropdown, the "Content Source" section must dynamically change to a multi-image upload interface.
+
+Multi-Image Upload Interface Specifications:
+
+File Input: The input type="file" element must have the multiple attribute to allow selecting several files at once.
+
+HTML
+
+<label for="slideshow-upload" class="custom-file-upload">
+    Upload Images (Select Multiple)
+</label>
+<input id="slideshow-upload" type="file" multiple accept="image/*" style="display:none;">
+Image Preview & Reordering Area:
+
+After images are selected, they should appear as thumbnails in a preview area below the upload button.
+
+Each thumbnail should display the image and its filename.
+
+Crucially, this area must support reordering. The recommended implementation is using a drag-and-drop library (like SortableJS or dnd-kit for React). Admins must be able to drag the thumbnails to change their sequence.
+
+Each thumbnail should also have a "delete" ( X ) button to remove it from the selection before saving.
+
+Saving Logic: When the admin saves the content item, the backend will receive an array of image files. It should process and store them, saving the ordered list of their URLs or identifiers to the database.
+
+2.2. Data Model / Database Schema Modification
+Content Table/Collection: The contentSource field needs to be flexible. It could be a TEXT or JSON type.
+
+For contentType = Image Slideshow, the contentSource will store a JSON array of strings, where each string is the URL to an image, stored in the order set by the admin.
+
+Example contentSource value: ["/uploads/image1.jpg", "/uploads/image-abc.png", "/uploads/photo-final.jpg"]
+
+2.3. User-Side: Slideshow Viewing Experience
+Interaction: When a user clicks on an icon whose contentType is Image Slideshow, the application will open a full-screen modal or navigate to a dedicated viewer page.
+
+Slideshow Viewer Component:
+
+Image Display: A central area that displays the current image. The image should be responsive and fit within the viewport.
+
+Navigation Controls:
+
+A "Previous" (<) button on the left side.
+
+A "Next" (>) button on the right side.
+
+These buttons allow the user to navigate through the array of images. The "Previous" button should be hidden on the first image, and "Next" hidden on the last.
+
+Pagination Indicators: A series of dots (• • •) at the bottom of the viewer, indicating the total number of images and highlighting the current one.
+
+Image Counter: A text indicator, e.g., "Image 2 of 5".
+
+Close/Back Button: A prominent "Close" (X) or "Back" button to exit the slideshow viewer and return to the main dashboard.

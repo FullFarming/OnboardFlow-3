@@ -1,0 +1,96 @@
+Onboarding Web Application Specification (Phase 4)
+Feature: Gamified Progress & Experience (EXP) Bar (User-Side)
+Objective: To visually represent the user's onboarding progress in a "gamified" manner, using a progress bar styled like an Experience (EXP) bar in a game. This bar will be persistently displayed at the bottom of the user's main dashboard.
+
+1. Data Requirements & Backend API Modification
+API Endpoint: The main API endpoint that fetches the user's dashboard data (curriculum icons and their completion status) must be enhanced to also return progress summary data.
+
+New Data in API Response: The JSON response for the user's dashboard should now include an object for progress tracking:
+
+JSON
+
+{
+  "userName": "...",
+  "buddyName": "...",
+  "contentItems": [ ... ],
+  "progress": {
+    "totalItems": 10,
+    "completedItems": 3
+  }
+}
+Backend Logic:
+
+totalItems: The server calculates this by querying the total number of active Content items.
+
+completedItems: The server calculates this by querying the UserContentCompletion table for the count of items where userId matches the logged-in user and isCompleted is true.
+
+2. Frontend Implementation & UI Design
+Component: ProgressBar
+
+A new UI component will be created, responsible for displaying the progress.
+
+Location: This component will be rendered in a fixed or sticky position at the bottom of the screen on the user's main dashboard, ensuring it is always visible as they scroll through their curriculum icons.
+
+Visual Elements:
+
+Main Container (progress-bar-container):
+
+A full-width bar at the bottom of the viewport.
+
+position: fixed; bottom: 0; left: 0; width: 100%;
+
+Will contain all other progress elements.
+
+Label Text (progress-label):
+
+A title for the bar, such as "Onboarding Progress" or "진행률".
+
+EXP Numerical Text (progress-exp-text):
+
+Displays the progress in a game-like format.
+
+Example: EXP: 3 / 10 (representing completedItems / totalItems).
+
+Optionally, a percentage can also be shown: (30%).
+
+The Bar Itself:
+
+Outer Bar (progress-bar-outer): The background or track of the bar. Typically a darker, semi-transparent color.
+
+Inner Bar (progress-bar-inner): The fill of the bar, representing the actual progress.
+
+Its width will be dynamically calculated as a percentage: width: (completedItems / totalItems) * 100%;.
+
+It should have a distinct, vibrant color (e.g., green, blue) to indicate progress.
+
+A subtle CSS transition on the width property will make the bar animate smoothly as it updates (transition: width 0.5s ease-in-out;).
+
+Example HTML/CSS Structure:
+
+HTML
+
+<div class="progress-bar-container">
+    <div class="progress-text-wrapper">
+        <span class="progress-label">Onboarding Progress</span>
+        <span class="progress-exp-text">EXP: 3 / 10 (30%)</span>
+    </div>
+    <div class="progress-bar-outer">
+        <div class="progress-bar-inner" style="width: 30%;"></div>
+    </div>
+</div>
+3. Real-Time Update Logic (JavaScript)
+Initial State: When the dashboard first loads, the ProgressBar component will be rendered using the progress data (totalItems and completedItems) fetched from the API.
+
+Dynamic Updates: The progress bar must update in real-time without needing a page refresh.
+
+The application will maintain a state for completedItems (e.g., using React's useState or a similar state management solution).
+
+When a user clicks a curriculum icon, the POST /api/content/toggle-completion request is sent as previously specified.
+
+Upon receiving a successful response from this API:
+
+If the item was marked as complete, the local completedItems state is incremented by 1.
+
+If the item was marked as incomplete (toggled off), the local completedItems state is decremented by 1.
+
+This change in the state will automatically trigger a re-render of the ProgressBar component. The component will recalculate the percentage width for the inner bar and update the numerical EXP text, causing the bar to animate to its new state.

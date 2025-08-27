@@ -24,7 +24,7 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
   // Fetch additional images for multi-image content
   const { data: contentImages = [] } = useQuery<ContentImage[]>({
     queryKey: [`/api/content-images/${content.id}`],
-    enabled: content.contentType === "Image",
+    enabled: content.contentType === "Image" || content.contentType === "Image Slideshow",
   });
 
   // Check if content is already completed
@@ -92,6 +92,7 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
         );
 
       case "Image":
+      case "Image Slideshow":
         // Handle multi-image content
         const allImages = contentImages.length > 0 ? contentImages : [{ imageUrl: content.contentSource, imageOrder: 1 }];
         const currentImage = allImages[currentImageIndex];

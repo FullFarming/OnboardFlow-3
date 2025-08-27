@@ -33,8 +33,8 @@ export default function UploadForm() {
       return response.json();
     },
     onSuccess: async (newContent) => {
-      // If there are multiple images for Image content type, upload them
-      if (contentType === "Image" && multiImages.length > 0) {
+      // If there are multiple images for Image Slideshow content type, upload them
+      if (contentType === "Image Slideshow" && multiImages.length > 0) {
         try {
           const imageFormData = new FormData();
           multiImages.forEach((item) => {
@@ -176,6 +176,7 @@ export default function UploadForm() {
                   <SelectItem value="Link">링크</SelectItem>
                   <SelectItem value="Video">비디오</SelectItem>
                   <SelectItem value="Image">이미지</SelectItem>
+                  <SelectItem value="Image Slideshow">이미지 슬라이드쇼</SelectItem>
                   <SelectItem value="PDF">PDF</SelectItem>
                 </SelectContent>
               </Select>
@@ -280,8 +281,8 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {/* Multi-Image Upload for Image Content Type */}
-          {contentType === "Image" && (
+          {/* Multi-Image Upload for Image Slideshow Content Type */}
+          {contentType === "Image Slideshow" && (
             <div className="space-y-4">
               <div className="border-t border-gray-200 pt-4">
                 <Label className="block text-sm font-medium text-gray-700 mb-4">

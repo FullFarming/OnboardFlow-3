@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight, CheckCircle2, Trophy, Sparkles } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import dashboardBg from "@assets/image_1756257576204.png";
 import cwLogo from "@assets/CW_Logo_Color-removebg-preview (1)_1756259032675.png";
 
@@ -17,6 +19,7 @@ export default function UserDashboard() {
   const [selectedContent, setSelectedContent] = useState<ContentIcon | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [previousPercentage, setPreviousPercentage] = useState(0);
+  const { toast } = useToast();
 
   // Get employee data from sessionStorage
   useEffect(() => {
@@ -44,9 +47,28 @@ export default function UserDashboard() {
   });
 
   // Fetch user progress details
-  const { data: userProgress = [] } = useQuery<any[]>({
+  const { data: userProgress = [], refetch: refetchUserProgress } = useQuery<any[]>({
     queryKey: [`/api/progress/${currentEmployee?.id}`],
     enabled: !!currentEmployee?.id,
+  });
+
+  // Toggle completion mutation
+  const toggleCompletionMutation = useMutation({
+    mutationFn: async ({ contentId, employeeId }: { contentId: string; employeeId: string }) => {
+      const response = await apiRequest("POST", "/api/content/toggle-completion", {
+        contentId,
+        employeeId,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchProgress();
+      refetchUserProgress();
+      toast({ title: "진행 상태가 업데이트되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "업데이트 실패", variant: "destructive" });
+    },
   });
 
   // Sort content icons by display order
@@ -72,7 +94,20 @@ export default function UserDashboard() {
     setLocation("/auth");
   };
 
-  const handleContentClick = (content: ContentIcon) => {
+  const handleContentClick = (content: ContentIcon, event?: React.MouseEvent) => {
+    // Check if this is a completion toggle (right-click or ctrl+click)
+    const isToggleClick = event?.ctrlKey || event?.metaKey || event?.button === 2;
+    
+    if (isToggleClick && currentEmployee) {
+      event?.preventDefault();
+      toggleCompletionMutation.mutate({
+        contentId: content.id,
+        employeeId: currentEmployee.id,
+      });
+      return;
+    }
+
+    // Normal content viewing
     if (content.contentType === "Link") {
       window.open(content.contentSource, "_blank");
     } else {
@@ -85,6 +120,7 @@ export default function UserDashboard() {
       case "Video": return "🎥";
       case "PDF": return "📄";
       case "Image": return "🖼️";
+      case "Image Slideshow": return "🎠";
       case "Link": return "🔗";
       default: return "📁";
     }
@@ -95,6 +131,7 @@ export default function UserDashboard() {
       case "Video": return "bg-blue-500";
       case "PDF": return "bg-green-500";
       case "Image": return "bg-orange-500";
+      case "Image Slideshow": return "bg-pink-500";
       case "Link": return "bg-purple-500";
       default: return "bg-gray-500";
     }
@@ -110,7 +147,7 @@ export default function UserDashboard() {
 
   return (
     <div 
-      className="min-h-screen hero-bg"
+      className="min-h-screen hero-bg pb-20"
       style={{ backgroundImage: `url(${dashboardBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
     >
       {/* Header */}
@@ -235,8 +272,19 @@ export default function UserDashboard() {
                     <div key={content.id} className="flex items-center">
                       <div
                         className="content-icon cursor-pointer group relative"
-                        onClick={() => handleContentClick(content)}
+                        onClick={(e) => handleContentClick(content, e)}
+                        onContextMenu={(e) => handleContentClick(content, e)}
+                        onDoubleClick={(e) => {
+                          e.preventDefault();
+                          if (currentEmployee) {
+                            toggleCompletionMutation.mutate({
+                              contentId: content.id,
+                              employeeId: currentEmployee.id,
+                            });
+                          }
+                        }}
                         data-testid={`content-icon-${content.id}`}
+                        title="더블클릭하여 완료 상태 변경"
                       >
                         <div className={`bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group-hover:scale-105 ${isCompleted ? 'ring-2 ring-green-500' : ''}`}>
                           <div className={`w-32 h-32 ${content.iconImage ? 'bg-transparent' : getContentTypeColor(content.contentType)} rounded-xl flex items-center justify-center mx-auto mb-3 text-4xl overflow-hidden relative`}>
@@ -267,6 +315,36 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gamified EXP Bar - Fixed at bottom */}
+      {progressSummary && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 shadow-lg z-50">
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">온보딩 진행률</span>
+              <span className="text-sm font-bold text-blue-600">
+                EXP: {progressSummary.completed} / {progressSummary.total} ({progressSummary.percentage}%)
+              </span>
+            </div>
+            <div className="relative">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500 ease-in-out"
+                  style={{ width: `${progressSummary.percentage}%` }}
+                  data-testid="exp-progress-bar"
+                >
+                  <div className="h-full bg-white bg-opacity-20 animate-pulse"></div>
+                </div>
+              </div>
+              {progressSummary.percentage === 100 && (
+                <div className="absolute -top-1 right-0">
+                  <Sparkles className="h-5 w-5 text-yellow-500 animate-bounce" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content Viewer Modal */}
       {selectedContent && currentEmployee && (
