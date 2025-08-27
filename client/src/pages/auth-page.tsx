@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Building, Shield, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import cwKoreaBg from "@assets/image_1756254246105.png";
+import loginBg from "@assets/image_1756258332288.png";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -64,14 +64,14 @@ export default function AuthPage() {
   return (
     <div 
       className="min-h-screen hero-bg flex items-center justify-center px-4"
-      style={{ backgroundImage: `url(${cwKoreaBg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+      style={{ backgroundImage: `url(${loginBg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
     >
       <Card className="w-full max-w-md glass-card">
         <CardContent className="pt-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">WELCOME</h1>
             <h2 className="text-2xl font-bold brand-navy mb-4">C&W KOREA</h2>
-            <p className="text-gray-600">온보딩 시스템</p>
+            <p className="text-gray-600"></p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
