@@ -16,6 +16,7 @@ interface MultiImageItem {
   file: File;
   preview: string;
   caption: string;
+  guideSentence: string;
   order: number;
 }
 
@@ -25,6 +26,7 @@ export default function UploadForm() {
   const [iconImageFile, setIconImageFile] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
   const [imageCaption, setImageCaption] = useState(""); // For single image caption
+  const [imageGuideSentence, setImageGuideSentence] = useState(""); // For single image guide sentence
   const [multiImages, setMultiImages] = useState<MultiImageItem[]>([]);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -49,6 +51,7 @@ export default function UploadForm() {
           multiImages.forEach((item) => {
             imageFormData.append('images', item.file);
             imageFormData.append('captions', item.caption);
+            imageFormData.append('guideSentences', item.guideSentence);
           });
           imageFormData.append('contentId', newContent.id);
           
@@ -91,11 +94,12 @@ export default function UploadForm() {
     }
 
     // For Image content type, append caption to contentSource
-    if (contentType === "Image" && contentFile && imageCaption) {
+    if (contentType === "Image" && contentFile && (imageCaption || imageGuideSentence)) {
       // Override contentSource with JSON structure
       const contentWithCaption = JSON.stringify({
         url: formData.get("contentSource") || "",
-        caption: imageCaption
+        caption: imageCaption,
+        guideSentence: imageGuideSentence
       });
       formData.set("contentSource", contentWithCaption);
     }
@@ -108,6 +112,7 @@ export default function UploadForm() {
     setIconImageFile(null);
     setContentFile(null);
     setImageCaption("");
+    setImageGuideSentence("");
     setMultiImages([]);
   };
 
@@ -132,6 +137,7 @@ export default function UploadForm() {
             file,
             preview,
             caption: "", // Default empty caption
+            guideSentence: "", // Default empty guide sentence
             order: multiImages.length + index + 1,
           };
           setMultiImages(prev => [...prev, newImage].map((item, i) => ({
@@ -180,6 +186,12 @@ export default function UploadForm() {
   const updateImageCaption = (index: number, caption: string) => {
     setMultiImages(prev => 
       prev.map((item, i) => i === index ? { ...item, caption } : item)
+    );
+  };
+
+  const updateImageGuideSentence = (index: number, guideSentence: string) => {
+    setMultiImages(prev => 
+      prev.map((item, i) => i === index ? { ...item, guideSentence } : item)
     );
   };
 
@@ -363,20 +375,38 @@ export default function UploadForm() {
 
           {/* Image Caption for Single Image Content Type */}
           {contentType === "Image" && contentFile && (
-            <div className="space-y-2">
-              <Label className="block text-sm font-medium text-gray-700">
-                이미지 캡션
-              </Label>
-              <Textarea
-                value={imageCaption}
-                onChange={(e) => setImageCaption(e.target.value)}
-                placeholder="이미지에 대한 설명을 입력하세요..."
-                className="min-h-[80px] resize-none"
-                data-testid="textarea-image-caption"
-              />
-              <p className="text-xs text-gray-500">
-                사용자에게 이미지와 함께 표시될 설명입니다.
-              </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-gray-700">
+                  이미지 캡션
+                </Label>
+                <Textarea
+                  value={imageCaption}
+                  onChange={(e) => setImageCaption(e.target.value)}
+                  placeholder="이미지에 대한 설명을 입력하세요..."
+                  className="min-h-[80px] resize-none"
+                  data-testid="textarea-image-caption"
+                />
+                <p className="text-xs text-gray-500">
+                  사용자에게 이미지와 함께 표시될 설명입니다.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-gray-700">
+                  가이드 문장
+                </Label>
+                <Textarea
+                  value={imageGuideSentence}
+                  onChange={(e) => setImageGuideSentence(e.target.value)}
+                  placeholder="사용자에게 표시할 가이드 문장을 입력하세요..."
+                  className="min-h-[80px] resize-none"
+                  data-testid="textarea-image-guide-sentence"
+                />
+                <p className="text-xs text-gray-500">
+                  이미지 아래에 어두운 배경으로 표시될 가이드 문장입니다.
+                </p>
+              </div>
             </div>
           )}
 
@@ -486,6 +516,20 @@ export default function UploadForm() {
                                 placeholder="이미지 설명..."
                                 className="min-h-[50px] resize-none text-xs"
                                 data-testid={`textarea-multi-image-caption-${index}`}
+                              />
+                            </div>
+                            
+                            {/* Guide Sentence input */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium text-gray-600">
+                                가이드 문장
+                              </Label>
+                              <Textarea
+                                value={item.guideSentence}
+                                onChange={(e) => updateImageGuideSentence(index, e.target.value)}
+                                placeholder="사용자에게 표시할 가이드 문장..."
+                                className="min-h-[60px] resize-none text-xs"
+                                data-testid={`textarea-multi-image-guide-${index}`}
                               />
                             </div>
                           </div>

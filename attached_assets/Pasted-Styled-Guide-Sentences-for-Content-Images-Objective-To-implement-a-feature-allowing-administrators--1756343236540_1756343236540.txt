@@ -1,0 +1,116 @@
+Styled Guide Sentences for Content Images
+Objective: To implement a feature allowing administrators to add a descriptive "guide sentence" to each content image. This sentence will be displayed below the image on the user side, styled with a semi-transparent dark background and light text, as shown in the provided reference image.
+
+## 1. Admin Panel Modifications
+The content creation form must be updated to accept a new text input for the guide sentence.
+
+UI/UX Changes
+For both Image and Image Slideshow content types:
+
+A new, separate text input field needs to be added for the guide sentence. This field should be distinct from the "Image Caption" field.
+
+Component: Use a <textarea> to allow for potentially longer, multi-line sentences.
+
+Label: Guide Sentence or Description
+
+Placement: In the case of an Image Slideshow, each image thumbnail in the preview area should have its own Guide Sentence textarea, in addition to its Caption field. The layout for each item should be:
+
+Image Thumbnail
+
+Caption Input
+
+Guide Sentence Input
+
+Delete Button
+
+Data Structure (Backend/Database)
+The contentSource JSON object in the database must be updated to store the new guideSentence field.
+
+For Image Content Type:
+
+Current Structure:
+
+JSON
+
+{ "url": "...", "caption": "..." }
+New Structure:
+
+JSON
+
+{
+  "url": "/uploads/image.jpg",
+  "caption": "Main Office",
+  "guideSentence": "This is the primary text that will be displayed below the image with special styling."
+}
+For Image Slideshow Content Type:
+
+Current Structure:
+
+JSON
+
+[ { "url": "...", "caption": "..." } ]
+New Structure: The array will contain objects that each include the new key.
+
+JSON
+
+[
+  {
+    "url": "/uploads/slide1.jpg",
+    "caption": "Step 1",
+    "guideSentence": "First, please read through the company policy document."
+  },
+  {
+    "url": "/uploads/slide2.jpg",
+    "caption": "Step 2",
+    "guideSentence": "Next, your buddy will introduce you to the team members."
+  }
+]
+## 2. User-Side (Content Viewer) Modifications
+The component that displays the images and slideshows must be updated to render and style the new guide sentence.
+
+Component Rendering Logic
+Data Fetching: Ensure the client-side application fetches the complete content object, including the new guideSentence key.
+
+Display Logic:
+
+The component will render the main image first.
+
+Below the image, it will render the caption text (if it exists) with its normal styling.
+
+Below the caption, it will render a new <div> element that contains the guideSentence text. This div will have a specific CSS class applied to it for styling.
+
+CSS Styling
+Create a new CSS class to match the style shown in the reference image. This class will be applied to the div containing the guide sentence.
+
+CSS Class Example: .guide-sentence-box
+
+CSS
+
+.guide-sentence-box {
+  /* Background and Spacing */
+  background-color: rgba(0, 0, 0, 0.7); /* Dark, semi-transparent background */
+  padding: 12px 16px;
+  margin-top: 10px; /* Space between it and the content above */
+  border-radius: 6px;
+
+  /* Text Styling */
+  color: #FFFFFF; /* White text color */
+  font-size: 1rem; /* Adjust size as needed */
+  line-height: 1.5;
+  text-align: left; /* Or 'center' if preferred */
+
+  /* Positioning (assuming it's inside a flex container for centering) */
+  width: 100%; /* Make it span the width of its container */
+  box-sizing: border-box;
+}
+Implementation: The final rendered HTML structure within the viewer should look something like this:
+
+HTML
+
+<div class="image-viewer-container">
+    <img src="/uploads/slide1.jpg" alt="Step 1">
+    <p class="caption-text">Step 1</p>
+    <div class="guide-sentence-box">
+        First, please read through the company policy document.
+    </div>
+</div>

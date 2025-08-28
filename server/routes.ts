@@ -212,24 +212,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/content-images", upload.array('images', 10), async (req, res) => {
     try {
       const files = req.files as Express.Multer.File[];
-      const { contentId, captions } = req.body;
+      const { contentId, captions, guideSentences } = req.body;
       
       if (!files || files.length === 0) {
         return res.status(400).json({ error: "No images uploaded" });
       }
 
-      // Parse captions - may come as string array from FormData
+      // Parse captions and guide sentences - may come as string array from FormData
       const captionArray = Array.isArray(captions) ? captions : [captions];
+      const guideSentenceArray = Array.isArray(guideSentences) ? guideSentences : [guideSentences];
 
       const createdImages = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const imageCaption = captionArray[i] || ""; // Use corresponding caption or empty string
+        const guideSentence = guideSentenceArray[i] || ""; // Use corresponding guide sentence or empty string
         
         const imageData = {
           contentId,
           imageUrl: `/uploads/${file.filename}`,
           imageCaption,
+          guideSentence,
           imageOrder: i + 1,
         };
         

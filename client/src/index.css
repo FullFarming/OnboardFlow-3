@@ -3,6 +3,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Guide Sentence Box Styling */
+.guide-sentence-box {
+  /* Background and Spacing */
+  background-color: rgba(0, 0, 0, 0.7); /* Dark, semi-transparent background */
+  padding: 12px 16px;
+  margin-top: 10px; /* Space between it and the content above */
+  border-radius: 6px;
+
+  /* Text Styling */
+  color: #FFFFFF; /* White text color */
+  font-size: 1rem; /* Adjust size as needed */
+  line-height: 1.5;
+  text-align: left; /* Or 'center' if preferred */
+
+  /* Positioning (assuming it's inside a flex container for centering) */
+  width: 100%; /* Make it span the width of its container */
+  box-sizing: border-box;
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(210, 25%, 7.8431%);

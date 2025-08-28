@@ -163,6 +163,38 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
                 ) : null;
               })()}
 
+              {/* Guide Sentence */}
+              {(() => {
+                let guideSentence = "";
+                
+                // For Image Slideshow or multi-image content, get guide sentence from current image
+                if (content.contentType === "Image Slideshow" && currentImage && 'guideSentence' in currentImage && currentImage.guideSentence) {
+                  guideSentence = currentImage.guideSentence;
+                }
+                // For single Image content, check if contentSource has guide sentence data
+                else if (content.contentType === "Image") {
+                  if (contentImages.length > 0 && currentImage && 'guideSentence' in currentImage && currentImage.guideSentence) {
+                    // If there are content images with guide sentences, use them
+                    guideSentence = currentImage.guideSentence;
+                  } else {
+                    // Try to parse contentSource for JSON guide sentence data
+                    try {
+                      const parsed = JSON.parse(content.contentSource);
+                      guideSentence = parsed.guideSentence || "";
+                    } catch {
+                      // If not JSON, no guide sentence available
+                      guideSentence = "";
+                    }
+                  }
+                }
+                
+                return guideSentence && guideSentence.trim() ? (
+                  <div className="guide-sentence-box">
+                    {guideSentence}
+                  </div>
+                ) : null;
+              })()}
+
               {/* Multi-image navigation */}
               {allImages.length > 1 && (
                 <div className="flex justify-between items-center mt-4">
