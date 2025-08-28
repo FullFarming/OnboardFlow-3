@@ -167,26 +167,40 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
               {(() => {
                 let guideSentence = "";
                 
+                // Debug logs
+                console.log("=== Guide Sentence Debug ===");
+                console.log("Content Type:", content.contentType);
+                console.log("Content Images:", contentImages);
+                console.log("Current Image:", currentImage);
+                console.log("Content Source:", content.contentSource);
+                
                 // For Image Slideshow or multi-image content, get guide sentence from current image
                 if (content.contentType === "Image Slideshow" && currentImage && 'guideSentence' in currentImage && currentImage.guideSentence) {
                   guideSentence = currentImage.guideSentence;
+                  console.log("Using slideshow guide sentence:", guideSentence);
                 }
                 // For single Image content, check if contentSource has guide sentence data
                 else if (content.contentType === "Image") {
                   if (contentImages.length > 0 && currentImage && 'guideSentence' in currentImage && currentImage.guideSentence) {
                     // If there are content images with guide sentences, use them
                     guideSentence = currentImage.guideSentence;
+                    console.log("Using content image guide sentence:", guideSentence);
                   } else {
                     // Try to parse contentSource for JSON guide sentence data
                     try {
                       const parsed = JSON.parse(content.contentSource);
                       guideSentence = parsed.guideSentence || "";
+                      console.log("Using parsed guide sentence:", guideSentence);
                     } catch {
                       // If not JSON, no guide sentence available
                       guideSentence = "";
+                      console.log("No guide sentence found in contentSource");
                     }
                   }
                 }
+                
+                console.log("Final guide sentence:", guideSentence);
+                console.log("=== End Debug ===");
                 
                 return guideSentence && guideSentence.trim() ? (
                   <div className="guide-sentence-box">
@@ -271,9 +285,6 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
               {content.iconTitle}
               {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-500" />}
             </DialogTitle>
-            <DialogDescription>
-              {content.contentType} 콘텐츠를 확인하고 학습을 진행하세요.
-            </DialogDescription>
           </DialogHeader>
           
           <div className="overflow-y-auto max-h-[calc(90vh-120px)]" data-testid="content-modal-body">
