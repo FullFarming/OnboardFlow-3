@@ -373,8 +373,8 @@ export default function UploadForm() {
             </div>
           </div>
 
-          {/* Image Caption for Single Image Content Type */}
-          {contentType === "Image" && contentFile && (
+          {/* Image Caption and Guide Sentence for Single Image Content Type */}
+          {contentType === "Image" && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="block text-sm font-medium text-gray-700">
