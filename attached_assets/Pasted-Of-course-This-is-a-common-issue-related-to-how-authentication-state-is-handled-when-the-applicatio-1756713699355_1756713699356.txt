@@ -1,0 +1,74 @@
+Of course. This is a common issue related to how authentication state is handled when the application first loads. Here is a guide in programming English to help an agent or developer remove the incorrect "Login failed" notification.
+
+Guide: Fixing the Premature '401 Unauthorized' Notification on Login
+1. Problem Description
+An incorrect "Login failed: 401 Unauthorized" notification is briefly displayed to the user before a successful login is completed. This creates a confusing user experience.
+
+2. Root Cause Analysis
+This issue is typically a race condition in the application's startup logic. The sequence of events is as follows:
+
+Initial Load: The application loads. Since the user has not logged in yet, there is no valid authentication token stored in the browser.
+
+Automatic Auth Check: A component (often the main App or a layout component) immediately tries to verify the user's session by sending a request to an endpoint like /api/user or /api/me.
+
+Expected 401 Error: Because there is no valid token, the server correctly responds with a 401 Unauthorized error.
+
+Error Notification: The application's global error handler catches this 401 error and triggers the "Login failed" notification.
+
+Successful Login: A moment later, the user submits their credentials. The login API call succeeds, the app state is updated, and the user is redirected, but the incorrect error message has already been displayed.
+
+3. Solution: Conditional Authentication Check
+The most robust solution is to prevent the initial authentication check from running if no token exists in the first place. There is no need to ask the server "who am I?" if you know there is no session token.
+
+Step 1: Locate the Initial Authentication Request
+Find the code that runs when your application first loads to check for a logged-in user. This is almost always inside a useEffect hook in a top-level component (e.g., App.js, _app.js, Layout.js).
+
+The problematic code will look something like this:
+
+JavaScript
+
+import { useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { fetchUser } from './authSlice';
+
+function App() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    // This request runs on every app load, causing a 401 if not logged in.
+    dispatch(fetchUser()); 
+  }, [dispatch]);
+
+  // ... rest of the component
+}
+Step 2: Add a Token Existence Check
+Before dispatching the fetchUser action or making the API call, first check if an authentication token exists in localStorage or cookies.
+
+Import or create a function to get the token (e.g., getToken()).
+
+Wrap the API call inside an if statement that checks the result of this function.
+
+The corrected code should look like this:
+
+JavaScript
+
+import { useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { fetchUser } from './authSlice';
+import { getToken } from './authUtils'; // Utility to get token from localStorage/cookies
+
+function App() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const token = getToken();
+
+    // Only try to fetch the user IF a token actually exists.
+    if (token) {
+      dispatch(fetchUser());
+    }
+  }, [dispatch]);
+
+  // ... rest of the component
+}
+By implementing this change, the automatic authentication request will only be sent when there is a reasonable expectation of success (i.e., a token is present). This prevents the server from sending the initial 401 Unauthorized error, and the incorrect "Login failed" notification will no longer appear.

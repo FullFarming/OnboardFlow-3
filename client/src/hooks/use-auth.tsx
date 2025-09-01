@@ -22,6 +22,14 @@ type LoginData = Pick<InsertUser, "username" | "password">;
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  
+  // Check if there might be a session cookie present
+  const hasSessionCookie = () => {
+    if (typeof document === 'undefined') return false;
+    // Check if there are any cookies that suggest a session exists
+    return document.cookie.includes('connect.sid') || document.cookie.includes('session');
+  };
+  
   const {
     data: user,
     error,
@@ -29,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: hasSessionCookie(), // Only run query if session cookie exists
   });
 
   const loginMutation = useMutation({
@@ -38,6 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Enable and refetch user query after successful login
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.refetchQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       toast({
