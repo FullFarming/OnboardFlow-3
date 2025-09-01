@@ -125,10 +125,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const iconImageFile = files?.iconImage?.[0];
       const contentFile = files?.contentFile?.[0];
       
+      // Handle contentSource - preserve JSON structure if it exists for Image content with metadata
+      let finalContentSource = req.body.contentSource;
+      if (contentFile) {
+        const fileUrl = `/uploads/${contentFile.filename}`;
+        // Check if contentSource is JSON (contains caption or guide sentence data)
+        if (req.body.contentSource && req.body.contentSource.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(req.body.contentSource);
+            // Update the URL in the JSON structure
+            parsed.url = fileUrl;
+            finalContentSource = JSON.stringify(parsed);
+          } catch {
+            // If parsing fails, just use the file URL
+            finalContentSource = fileUrl;
+          }
+        } else {
+          finalContentSource = fileUrl;
+        }
+      }
+
       const contentIconData = {
         iconTitle: req.body.iconTitle,
         contentType: req.body.contentType,
-        contentSource: contentFile ? `/uploads/${contentFile.filename}` : req.body.contentSource,
+        contentSource: finalContentSource,
         displayOrder: parseInt(req.body.displayOrder),
         iconImage: iconImageFile ? `/uploads/${iconImageFile.filename}` : req.body.iconImage,
       };

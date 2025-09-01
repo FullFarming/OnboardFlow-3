@@ -1,0 +1,76 @@
+Bug Fix Specification: Guide Sentences Not Displaying on User Interface
+1. Problem Description
+The guide sentences (also referred to as Markdown descriptions), which are entered and saved for each content item in the Admin Panel, are not visible on the user-facing side of the application. The UI currently displays the content images but fails to render their associated descriptive text below them.
+
+2. Objective
+Modify the user-side rendering components to correctly fetch and display the guide sentence for each content item. The final output should show the image followed by its corresponding formatted manual description.
+
+## 3. Diagnostic and Resolution Steps
+Step 1: Verify API Response 📡
+First, confirm that the backend API is correctly sending the guide sentence data to the client.
+
+Open the browser's Developer Tools (F12) on the user-side page where the content should be displayed.
+
+Go to the Network tab.
+
+Find the API request that fetches the content data (e.g., /api/content/{id}).
+
+Inspect the Response or Preview tab for that request. The JSON data for each content item should contain the key for the guide, such as guideSentence or markdownContent.
+
+If the key is missing: The problem is in the backend. You must update the API endpoint to include this field in the database query and the JSON response.
+
+If the key is present: The problem is in the frontend. Proceed to the next step.
+
+Step 2: Inspect Frontend Component Props 📦
+Next, ensure that the data, once received from the API, is correctly passed down to the component responsible for rendering the content.
+
+Using component inspection tools (e.g., React DevTools), select the component that renders a single content item (e.g., ManualStep, ContentViewer).
+
+Check its props. Verify that the prop containing the guide sentence (e.g., props.markdownContent) is present and holds the correct string data.
+
+If the prop is missing or empty: The issue is in the parent component's data handling logic. Check the state management and data-passing logic after the API call is resolved.
+
+If the prop is present and correct: The issue is in the component's rendering logic. Proceed to the next step.
+
+Step 3: Correct the Rendering Logic 🖥️
+Finally, modify the component's render method to display the guide sentence. This is the most likely location of the error.
+
+Action: Locate the JSX/HTML structure within the component's return statement. You must add the code to render the guide sentence prop.
+
+Reminder: As this content is Markdown, it must be processed by a Markdown rendering library (e.g., react-markdown) to be displayed with formatting.
+
+Example Implementation (React.js):
+
+INCORRECT CODE (Current State):
+
+JavaScript
+
+function ManualStep({ imageUrl, caption }) {
+  // The 'markdownContent' prop is received but NOT used.
+  return (
+    <div className="manual-step">
+      <img src={imageUrl} alt={caption} />
+      {/* Guide sentence is missing here */}
+    </div>
+  );
+}
+CORRECTED CODE (Required State):
+
+JavaScript
+
+import ReactMarkdown from 'react-markdown'; // Ensure this is imported
+
+function ManualStep({ imageUrl, caption, markdownContent }) {
+  return (
+    <div className="manual-step">
+      <img src={imageUrl} alt={caption} />
+      
+      {/* Add this section to render the guide sentence */}
+      {markdownContent && (
+        <div className="manual-description">
+          <ReactMarkdown>{markdownContent}</ReactMarkdown>
+        </div>
+      )}
+    </div>
+  );
+}
