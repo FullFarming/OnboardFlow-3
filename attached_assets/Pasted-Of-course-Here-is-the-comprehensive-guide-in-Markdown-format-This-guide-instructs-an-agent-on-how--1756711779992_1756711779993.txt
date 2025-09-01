@@ -1,0 +1,114 @@
+Of course. Here is the comprehensive guide in Markdown format. This guide instructs an agent on how to modify both the Admin Panel and the User Interface to support unique, per-slide descriptions for image slideshows.
+
+Specification: Implement Per-Slide Descriptions for Image Slideshows
+1. Objective
+Your task is to implement a feature where unique, formatted Markdown descriptions can be assigned to each individual image within a slideshow. The administrator must be able to see a preview of each description in the admin panel, and the user must see the corresponding description change as they navigate through the slides.
+
+2. Prerequisite: Data Model
+This implementation relies on a specific JSON structure for the contentSource of a slideshow. Ensure the backend saves and delivers the data in this format: an array of objects.
+
+Required JSON Structure:
+
+JSON
+
+{
+  "contentSource": [
+    {
+      "imageUrl": "/path/to/image1.png",
+      "markdownContent": "## Slide 1: Welcome\n\nThis is the description for the **first** image."
+    },
+    {
+      "imageUrl": "/path/to/image2.png",
+      "markdownContent": "## Slide 2: Key Features\n\nThis description is for the **second** image, with a list:\n\n* Feature A\n* Feature B"
+    }
+  ]
+}
+3. Admin Panel Modifications
+3.1. UI/UX: Implement Live Previews for Each Slide
+The admin needs to see how the description for each slide will look before saving. You must add a rendered preview area beneath each Markdown editor in the slideshow creation form.
+
+Action: For each slide entry in the admin's slideshow editor (which already contains an image thumbnail and a Markdown editor), add a "Preview" section directly below the editor.
+
+Implementation: Use the same Markdown rendering component that the end-user will see. As the admin types Markdown into the editor for a slide, the preview area below it should update in real-time to show the formatted output. This provides immediate visual feedback.
+
+Conceptual Structure for a single slide editor in the admin panel:
+
+JavaScript
+
+<div class="admin-slide-editor">
+  <img src={slide.imageUrl} alt="Thumbnail Preview" />
+  <MarkdownEditor value={slide.markdownContent} onChange={...} />
+
+  {/* --- Add this live preview section --- */}
+  <div class="admin-slide-preview">
+    <h4>Preview:</h4>
+    <div class="manual-description">
+      <ReactMarkdown>{slide.markdownContent}</ReactMarkdown>
+    </div>
+  </div>
+</div>
+4. User Interface Modifications
+4.1. Logic: State Management for the Current Slide
+The user-side slideshow component must track the currently active slide using a state variable.
+
+State Management: Implement a state to hold the index of the current slide.
+
+JavaScript
+
+const [currentIndex, setCurrentIndex] = useState(0);
+Navigation: Create functions to handle "Next" and "Previous" button clicks. These functions will update the currentIndex, ensuring it stays within the bounds of the slides array (0 to slides.length - 1).
+
+4.2. Rendering: Displaying the Correct Image and Description
+The component must dynamically render the image and description based on the currentIndex.
+
+Action: Use the currentIndex to select the correct object from the contentSource array. Then, pass the imageUrl and markdownContent from that object to their respective rendering components.
+
+Implementation Example (React.js):
+
+JavaScript
+
+import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+
+// Assume `slides` is the `contentSource` array from the database.
+function SlideshowViewer({ slides }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const goToPrevious = () => {
+    const isFirstSlide = currentIndex === 0;
+    const newIndex = isFirstSlide ? slides.length - 1 : currentIndex - 1;
+    setCurrentIndex(newIndex);
+  };
+
+  const goToNext = () => {
+    const isLastSlide = currentIndex === slides.length - 1;
+    const newIndex = isLastSlide ? 0 : currentIndex + 1;
+    setCurrentIndex(newIndex);
+  };
+
+  // Get the data for the currently active slide
+  const currentSlide = slides[currentIndex];
+
+  return (
+    <div className="slideshow-container">
+      <div className="slide-navigation">
+        <button onClick={goToPrevious}>Previous</button>
+        <button onClick={goToNext}>Next</button>
+      </div>
+
+      <div className="slide-content">
+        {/* Display the image for the current slide */}
+        <img src={currentSlide.imageUrl} alt={`Slide ${currentIndex + 1}`} />
+
+        {/* Render the unique Markdown description for the current slide */}
+        <div className="manual-description">
+          <ReactMarkdown>{currentSlide.markdownContent}</ReactMarkdown>
+        </div>
+      </div>
+
+      <div className="slide-counter">
+        {currentIndex + 1} / {slides.length}
+      </div>
+    </div>
+  );
+}

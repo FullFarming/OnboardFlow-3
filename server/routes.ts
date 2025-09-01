@@ -116,17 +116,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/content-icons", upload.fields([
-    { name: 'iconImage', maxCount: 1 },
-    { name: 'contentFile', maxCount: 1 }
-  ]), async (req, res) => {
+  app.post("/api/content-icons", upload.any(), async (req, res) => {
     try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const iconImageFile = files?.iconImage?.[0];
-      const contentFile = files?.contentFile?.[0];
+      const files = req.files as Express.Multer.File[];
+      
+      // Find specific file types
+      const iconImageFile = files?.find(f => f.fieldname === 'iconImage');
+      const contentFile = files?.find(f => f.fieldname === 'contentFile');
+      const slideImageFiles = files?.filter(f => f.fieldname.startsWith('slideImage_')) || [];
       
       // Handle contentSource - preserve JSON structure if it exists for Image content with metadata
       let finalContentSource = req.body.contentSource;
+      
+      // Handle single image content
       if (contentFile) {
         const fileUrl = `/uploads/${contentFile.filename}`;
         // Check if contentSource is JSON (contains caption or guide sentence data)
@@ -142,6 +144,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } else {
           finalContentSource = fileUrl;
+        }
+      }
+      
+      // Handle slideshow content
+      if (req.body.contentType === "Image Slideshow" && slideImageFiles.length > 0) {
+        try {
+          const slideshowData = JSON.parse(req.body.contentSource);
+          
+          // Update image URLs with actual uploaded file paths
+          const updatedSlideshowData = slideshowData.map((slide: any, index: number) => {
+            const slideFile = slideImageFiles.find(f => f.fieldname === `slideImage_${index}`);
+            return {
+              ...slide,
+              imageUrl: slideFile ? `/uploads/${slideFile.filename}` : slide.imageUrl
+            };
+          });
+          
+          finalContentSource = JSON.stringify(updatedSlideshowData);
+        } catch (error) {
+          console.error("Error processing slideshow data:", error);
+          throw new Error("Failed to process slideshow data");
         }
       }
 
@@ -176,6 +199,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           // ContentSource is not JSON, no need to create content_images record
           console.log("ContentSource is not JSON, skipping content_images creation");
+        }
+      }
+      
+      // For Image Slideshow content, create content_images records for each slide
+      if (contentIcon.contentType === "Image Slideshow") {
+        try {
+          const slideshowData = JSON.parse(contentIcon.contentSource);
+          if (Array.isArray(slideshowData)) {
+            for (const slide of slideshowData) {
+              const contentImageData = {
+                contentId: contentIcon.id,
+                imageUrl: slide.imageUrl,
+                imageCaption: slide.caption || "",
+                guideSentence: slide.markdownContent || "",
+                imageOrder: slide.order || 1,
+              };
+              
+              const validatedImageData = insertContentImageSchema.parse(contentImageData);
+              await storage.createContentImage(validatedImageData);
+            }
+          }
+        } catch (error) {
+          console.error("Error creating slideshow content_images:", error);
         }
       }
       

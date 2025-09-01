@@ -13,6 +13,9 @@ import { Plus, Upload, X, ChevronUp, ChevronDown, Images, Eye, ChevronLeft, Chev
 import Sortable from "sortablejs";
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 
 interface MultiImageItem {
   file: File;
@@ -104,6 +107,25 @@ export default function UploadForm() {
         guideSentence: imageGuideSentence
       });
       formData.set("contentSource", contentWithCaption);
+    }
+    
+    // For Image Slideshow content type, handle multi-image data
+    if (contentType === "Image Slideshow" && multiImages.length > 0) {
+      // Append all slide files to FormData
+      multiImages.forEach((item, index) => {
+        formData.append(`slideImage_${index}`, item.file);
+      });
+      
+      // Create slideshow JSON structure
+      const slideshowData = multiImages.map((item, index) => ({
+        imageUrl: `/uploads/slideImage_${index}_${item.file.name}`, // This will be updated by server
+        caption: item.caption,
+        markdownContent: item.guideSentence,
+        order: item.order
+      }));
+      
+      formData.set("contentSource", JSON.stringify(slideshowData));
+      formData.set("slideshowImageCount", multiImages.length.toString());
     }
 
     addContentMutation.mutate(formData);
@@ -543,6 +565,23 @@ export default function UploadForm() {
                                   data-testid={`markdown-editor-multi-image-guide-${index}`}
                                 />
                               </div>
+                              
+                              {/* Live Preview Section */}
+                              {item.guideSentence && item.guideSentence.trim() && (
+                                <div className="mt-2 p-2 bg-gray-50 border rounded-lg">
+                                  <Label className="text-xs font-medium text-gray-600 mb-1 block">
+                                    미리보기:
+                                  </Label>
+                                  <div className="guide-sentence-box markdown-content text-xs">
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      rehypePlugins={[rehypeSanitize]}
+                                    >
+                                      {item.guideSentence}
+                                    </ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                           
@@ -605,7 +644,7 @@ export default function UploadForm() {
           {multiImages.length > 0 && (
             <div className="flex-1 flex flex-col">
               {/* Slideshow Container */}
-              <div className="flex-1 relative bg-black rounded-lg mx-6 mb-4">
+              <div className="flex-1 relative bg-black rounded-lg mx-6 mb-4 min-h-[400px]">
                 <img
                   src={multiImages[currentSlide]?.preview}
                   alt={multiImages[currentSlide]?.file.name}
@@ -636,6 +675,20 @@ export default function UploadForm() {
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
                   {currentSlide + 1} / {multiImages.length}
                 </div>
+                
+                {/* Current Slide Description */}
+                {multiImages[currentSlide]?.guideSentence && multiImages[currentSlide].guideSentence.trim() && (
+                  <div className="absolute bottom-16 left-4 right-4">
+                    <div className="guide-sentence-box markdown-content">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                      >
+                        {multiImages[currentSlide].guideSentence}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Thumbnail Navigation */}

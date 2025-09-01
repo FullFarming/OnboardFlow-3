@@ -97,7 +97,48 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
       case "Image":
       case "Image Slideshow":
         // Handle multi-image content
-        const allImages = contentImages.length > 0 ? contentImages : [{ imageUrl: content.contentSource, imageOrder: 1, imageCaption: null, guideSentence: null }];
+        let allImages = contentImages.length > 0 ? contentImages : [];
+        
+        // If no content images, try to create from contentSource
+        if (allImages.length === 0) {
+          try {
+            // Try to parse contentSource as JSON (for images with captions/guide sentences)
+            const parsed = JSON.parse(content.contentSource);
+            if (parsed.url) {
+              allImages = [{ 
+                id: 'temp-1',
+                createdAt: null,
+                contentId: content.id,
+                imageUrl: parsed.url, 
+                imageOrder: 1, 
+                imageCaption: parsed.caption || null, 
+                guideSentence: parsed.guideSentence || null 
+              }];
+            } else if (Array.isArray(parsed)) {
+              // Handle slideshow format
+              allImages = parsed.map((slide, index) => ({
+                id: `temp-${index + 1}`,
+                createdAt: null,
+                contentId: content.id,
+                imageUrl: slide.imageUrl || slide.url,
+                imageOrder: index + 1,
+                imageCaption: slide.caption || null,
+                guideSentence: slide.markdownContent || slide.guideSentence || null
+              }));
+            }
+          } catch {
+            // ContentSource is a plain URL
+            allImages = [{ 
+              id: 'temp-1',
+              createdAt: null,
+              contentId: content.id,
+              imageUrl: content.contentSource, 
+              imageOrder: 1, 
+              imageCaption: null, 
+              guideSentence: null 
+            }];
+          }
+        }
         const currentImage = allImages[currentImageIndex];
         
         // Ensure image URL is properly formatted
