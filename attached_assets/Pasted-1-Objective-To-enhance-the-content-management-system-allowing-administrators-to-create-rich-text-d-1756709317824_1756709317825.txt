@@ -1,0 +1,127 @@
+1. Objective
+To enhance the content management system, allowing administrators to create rich-text descriptions for images using Markdown. This will enable the creation of step-by-step "manuals" for users, where formatted text (headings, bold, lists, etc.) is displayed beneath each corresponding image in a sequence.
+
+2. Admin Panel Modifications
+2.1. UI/UX: Implement a Markdown Editor
+The standard <textarea> for the image description (Guide Sentence) will be replaced with a user-friendly Markdown editor.
+
+Component Change:
+
+Replace the existing <textarea> for the description field with a WYSIWYG (What You See Is What You Get) Markdown Editor.
+
+This applies to both the single Image content type and each individual image within the Image Slideshow content type.
+
+Recommended Libraries:
+
+react-markdown-editor-lite
+
+Toast UI Editor
+
+SimpleMDE
+
+Functionality:
+
+The editor should provide basic formatting buttons (e.g., Bold, Italic, Headers, Lists) to make it easy for admins to write structured content without needing to know Markdown syntax by heart.
+
+A live preview feature is highly recommended.
+
+2.2. Data Storage (Backend)
+The way the data is stored in the database will be updated to support Markdown.
+
+Database Field: The guideSentence (or description) field in the database will now store the raw Markdown string entered by the administrator.
+
+Example Data: The content of the guideSentence field will look like this in the database:
+
+Markdown
+
+## Step 1: Accessing the System
+
+Please navigate to the main login page. You will need your employee ID.
+
+**Key Points:**
+* Use the Chrome browser for best performance.
+* Do not share your login credentials.
+3. User-Side (Content Viewer) Modifications
+3.1. Rendering Logic: Displaying Formatted Content
+The user-facing viewer must be updated to correctly parse and render the raw Markdown string into formatted HTML.
+
+Component Change:
+
+Do not render the guideSentence string directly into a <div> or <p> tag.
+
+Use a dedicated Markdown rendering library to process the string from the database before displaying it.
+
+Recommended Libraries:
+
+For vanilla JavaScript: marked.js or Showdown.js
+
+For React applications: react-markdown
+
+Security:
+
+It is critical to configure the rendering library to sanitize the output. This prevents Cross-Site Scripting (XSS) attacks. Most libraries have built-in options for this (e.g., using DOMPurify with marked.js).
+
+Implementation Example (react-markdown):
+
+JavaScript
+
+import ReactMarkdown from 'react-markdown';
+
+function ManualStep({ imageUrl, caption, markdownContent }) {
+  return (
+    <div className="manual-step">
+      <img src={imageUrl} alt={caption} />
+      <div className="manual-description">
+        <ReactMarkdown>{markdownContent}</ReactMarkdown>
+      </div>
+    </div>
+  );
+}
+3.2. Styling (CSS)
+Add CSS rules to style the rendered HTML elements (headings, paragraphs, lists, etc.) to look like a clean, professional manual.
+
+CSS Selectors: You will style the standard HTML tags that the Markdown renderer produces (<h2>, <p>, <strong>, <ul>, <li>, etc.).
+
+Example CSS:
+
+CSS
+
+/* Container for the rendered Markdown content */
+.manual-description {
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 5px;
+  margin-top: 15px;
+  background-color: #f9f9f9;
+  text-align: left;
+}
+
+/* Styling for a Level 2 Header (## in Markdown) */
+.manual-description h2 {
+  font-size: 1.5rem;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 5px;
+  margin-top: 0;
+}
+
+/* Styling for paragraphs */
+.manual-description p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #555;
+}
+
+/* Styling for bold text (**text** in Markdown) */
+.manual-description strong {
+  color: #d9534f; /* A highlight color for important text */
+}
+
+/* Styling for bullet points (* item in Markdown) */
+.manual-description ul {
+  padding-left: 20px;
+}
+
+.manual-description li {
+  margin-bottom: 8px;
+}

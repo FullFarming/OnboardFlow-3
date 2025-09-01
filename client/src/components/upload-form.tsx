@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Plus, Upload, X, ChevronUp, ChevronDown, Images, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import Sortable from "sortablejs";
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
 
 interface MultiImageItem {
   file: File;
@@ -394,17 +396,22 @@ export default function UploadForm() {
               
               <div className="space-y-2">
                 <Label className="block text-sm font-medium text-gray-700">
-                  가이드 문장
+                  가이드 문장 (마크다운 지원)
                 </Label>
-                <Textarea
-                  value={imageGuideSentence}
-                  onChange={(e) => setImageGuideSentence(e.target.value)}
-                  placeholder="사용자에게 표시할 가이드 문장을 입력하세요..."
-                  className="min-h-[80px] resize-none"
-                  data-testid="textarea-image-guide-sentence"
-                />
+                <div className="border rounded-md overflow-hidden">
+                  <MdEditor
+                    value={imageGuideSentence}
+                    style={{ height: '300px' }}
+                    renderHTML={(text) => Promise.resolve(text)}
+                    onChange={({ text }) => setImageGuideSentence(text)}
+                    placeholder="사용자에게 표시할 가이드 문장을 마크다운으로 입력하세요..."
+                    view={{ menu: true, md: true, html: true }}
+                    canView={{ menu: true, md: true, html: true, both: false, fullScreen: true, hideMenu: true }}
+                    data-testid="markdown-editor-image-guide-sentence"
+                  />
+                </div>
                 <p className="text-xs text-gray-500">
-                  이미지 아래에 어두운 배경으로 표시될 가이드 문장입니다.
+                  마크다운 형식으로 입력하여 제목, 굵은 글씨, 목록 등을 사용할 수 있습니다.
                 </p>
               </div>
             </div>
@@ -522,15 +529,20 @@ export default function UploadForm() {
                             {/* Guide Sentence input */}
                             <div className="space-y-1">
                               <Label className="text-xs font-medium text-gray-600">
-                                가이드 문장
+                                가이드 문장 (마크다운)
                               </Label>
-                              <Textarea
-                                value={item.guideSentence}
-                                onChange={(e) => updateImageGuideSentence(index, e.target.value)}
-                                placeholder="사용자에게 표시할 가이드 문장..."
-                                className="min-h-[60px] resize-none text-xs"
-                                data-testid={`textarea-multi-image-guide-${index}`}
-                              />
+                              <div className="border rounded overflow-hidden">
+                                <MdEditor
+                                  value={item.guideSentence}
+                                  style={{ height: '150px' }}
+                                  renderHTML={(text) => Promise.resolve(text)}
+                                  onChange={({ text }) => updateImageGuideSentence(index, text)}
+                                  placeholder="마크다운으로 가이드 문장 입력..."
+                                  view={{ menu: true, md: true, html: false }}
+                                  canView={{ menu: true, md: true, html: false, both: false, fullScreen: false, hideMenu: false }}
+                                  data-testid={`markdown-editor-multi-image-guide-${index}`}
+                                />
+                              </div>
                             </div>
                           </div>
                           

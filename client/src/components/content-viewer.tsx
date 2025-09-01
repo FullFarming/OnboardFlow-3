@@ -6,6 +6,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ContentIcon, type ContentImage } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 
 interface ContentViewerProps {
   content: ContentIcon;
@@ -189,8 +192,13 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
                 }
                 
                 return guideSentence && guideSentence.trim() ? (
-                  <div className="guide-sentence-box">
-                    {guideSentence}
+                  <div className="guide-sentence-box markdown-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                    >
+                      {guideSentence}
+                    </ReactMarkdown>
                   </div>
                 ) : null;
               })()}
