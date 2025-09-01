@@ -135,6 +135,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertContentIconSchema.parse(contentIconData);
       const contentIcon = await storage.createContentIcon(validatedData);
+      
+      // For single Image content with caption or guide sentence, also create content_images record
+      if (contentIcon.contentType === "Image" && contentFile) {
+        try {
+          // Check if contentSource contains JSON with caption or guide sentence
+          const parsedContent = JSON.parse(contentIcon.contentSource);
+          if (parsedContent.caption || parsedContent.guideSentence) {
+            const contentImageData = {
+              contentId: contentIcon.id,
+              imageUrl: parsedContent.url || contentIcon.contentSource,
+              imageCaption: parsedContent.caption || "",
+              guideSentence: parsedContent.guideSentence || "",
+              imageOrder: 1,
+            };
+            
+            const validatedImageData = insertContentImageSchema.parse(contentImageData);
+            await storage.createContentImage(validatedImageData);
+          }
+        } catch (error) {
+          // ContentSource is not JSON, no need to create content_images record
+          console.log("ContentSource is not JSON, skipping content_images creation");
+        }
+      }
+      
       res.status(201).json(contentIcon);
     } catch (error) {
       console.error("Error creating content icon:", error);
