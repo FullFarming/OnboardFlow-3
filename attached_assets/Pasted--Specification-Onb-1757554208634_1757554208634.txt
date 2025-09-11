@@ -1,0 +1,107 @@
+알겠습니다. 모든 온보딩 커리큘럼을 완료했을 때 축하 배지를 표시하는 기능에 대한 수정 가이드를 프로그래밍 영어로 상세하게 작성해 드리겠습니다.
+
+Specification: Onboarding Completion Congratulations Badge
+1. Objective
+To implement a feature that displays a "Congratulations Badge" or a modal notification to the user when they have successfully completed all assigned onboarding curriculum items. This notification will appear once the user closes the final curriculum item and returns to the main dashboard.
+
+2. Backend & API Modifications
+The frontend needs to be aware when the user's progress reaches 100%. The API that provides progress data must be updated to facilitate this.
+
+API Endpoint: The API endpoint that fetches the user's dashboard data (e.g., GET /api/user-progress) should continue to return the progress object.
+
+JSON
+
+{
+  "progress": {
+    "totalItems": 10,
+    "completedItems": 10
+  }
+}
+Recommendation: While not mandatory, adding a boolean flag like isAllComplete can simplify the frontend logic.
+
+JSON
+
+{
+  "progress": {
+    "totalItems": 10,
+    "completedItems": 10,
+    "isAllComplete": true
+  }
+}
+3. Frontend State Management
+The frontend must track the completion state to trigger the notification only once and at the correct moment.
+
+State Variables: Introduce two new state variables in your main dashboard component's state management (e.g., using React's useState).
+
+JavaScript
+
+const [wasAllComplete, setWasAllComplete] = useState(false);
+const [showCongratsBadge, setShowCongratsBadge] = useState(false);
+wasAllComplete: Tracks if the curriculum was already complete on the last check. This prevents the badge from appearing every time the user visits the dashboard after completion.
+
+showCongratsBadge: Controls the visibility of the actual badge/modal.
+
+4. Frontend Logic Implementation
+The logic should be placed within a useEffect hook that runs whenever the user's progress data is updated.
+
+Fetch Progress Data: Fetch the user's progress from the API as usual.
+
+Check for New Completion: After fetching, compare the current progress with the wasAllComplete state.
+
+Trigger the Badge: If the curriculum was not previously complete, but is now complete, set showCongratsBadge to true.
+
+Update the Tracker: Update wasAllComplete to reflect the new state, ensuring the badge doesn't trigger again.
+
+Example Implementation (React.js):
+
+JavaScript
+
+// This effect runs when 'userProgress' data is fetched or updated
+useEffect(() => {
+  if (userProgress) {
+    const { completedItems, totalItems } = userProgress;
+    const isNowComplete = completedItems === totalItems && totalItems > 0;
+
+    // Trigger condition: Was not complete before, but is complete now.
+    if (isNowComplete && !wasAllComplete) {
+      setShowCongratsBadge(true); // Show the badge!
+    }
+
+    // Update the tracker for the next check
+    setWasAllComplete(isNowComplete);
+  }
+}, [userProgress, wasAllComplete]);
+5. UI Component: Congratulations Badge
+Create a new component for the badge/modal that is conditionally rendered based on the showCongratsBadge state.
+
+Component Name: CongratsBadge.js
+
+Features:
+
+The component should render as a modal or a prominent, centered overlay to capture the user's attention.
+
+It should have a clear "Close" or "Confirm" (X) button that, when clicked, sets setShowCongratsBadge(false).
+
+The styling should be celebratory (e.g., using icons like 🎉 or 🏆).
+
+Content: The badge must contain the following specific text:
+
+HR에 방문하셔서 이걸 보여주시면 입사 선물을 받을 수 있어요!
+
+Example JSX:
+
+JavaScript
+
+// In your main dashboard component's return statement
+{showCongratsBadge && (
+  <div className="congrats-overlay">
+    <div className="congrats-badge">
+      <button className="close-button" onClick={() => setShowCongratsBadge(false)}>X</button>
+      <h2>🎉 Congratulations! 🎉</h2>
+      <p>온보딩을 완료하신 것을 축하합니다!</p>
+      <div className="gift-message">
+        <p><strong>HR에 방문하셔서 이걸 보여주시면 입사 선물을 받을 수 있어요!</strong></p>
+      </div>
+    </div>
+  </div>
+)}

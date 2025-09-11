@@ -18,14 +18,20 @@ export default function UserDashboard() {
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [selectedContent, setSelectedContent] = useState<ContentIcon | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [previousPercentage, setPreviousPercentage] = useState(0);
+  const [wasAllComplete, setWasAllComplete] = useState(false);
   const { toast } = useToast();
 
   // Get employee data from sessionStorage
   useEffect(() => {
     const employeeData = sessionStorage.getItem("currentEmployee");
     if (employeeData) {
-      setCurrentEmployee(JSON.parse(employeeData));
+      const employee = JSON.parse(employeeData);
+      setCurrentEmployee(employee);
+      
+      // Initialize wasAllComplete from localStorage for this employee
+      const completionKey = `onboardingComplete:${employee.id}`;
+      const savedCompletion = localStorage.getItem(completionKey) === 'true';
+      setWasAllComplete(savedCompletion);
     } else {
       setLocation("/auth");
     }
@@ -41,6 +47,7 @@ export default function UserDashboard() {
     completed: number;
     total: number;
     percentage: number;
+    isAllComplete: boolean;
   }>({
     queryKey: [`/api/progress-summary/${currentEmployee?.id}`],
     enabled: !!currentEmployee?.id,
@@ -94,18 +101,26 @@ export default function UserDashboard() {
     },
   });
 
-  // Sort content icons by display order
-  const contentIcons = contentIconsData.sort((a, b) => a.displayOrder - b.displayOrder);
+  // Sort content icons by display order (create a copy to avoid mutating the cache)
+  const contentIcons = [...contentIconsData].sort((a, b) => a.displayOrder - b.displayOrder);
 
   // Check for completion celebration
   useEffect(() => {
-    if (progressSummary && progressSummary.percentage === 100 && previousPercentage < 100) {
-      setShowCelebration(true);
+    if (progressSummary && currentEmployee) {
+      // Primary check using isAllComplete flag, fallback to percentage for robustness
+      const isNowComplete = (progressSummary.isAllComplete || progressSummary.percentage === 100) && progressSummary.total > 0;
+      
+      // Trigger badge when completion is newly achieved
+      if (isNowComplete && !wasAllComplete) {
+        setShowCelebration(true);
+        // Persist completion state to prevent future notifications
+        localStorage.setItem(`onboardingComplete:${currentEmployee.id}`, 'true');
+      }
+      
+      // Update the tracker for next check
+      setWasAllComplete(isNowComplete);
     }
-    if (progressSummary) {
-      setPreviousPercentage(progressSummary.percentage);
-    }
-  }, [progressSummary?.percentage, previousPercentage]);
+  }, [progressSummary?.isAllComplete, progressSummary?.percentage, wasAllComplete, currentEmployee]);
 
   // Function to check if content is completed
   const isContentCompleted = (contentId: string) => {
@@ -390,23 +405,24 @@ export default function UserDashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-center gap-2 text-2xl">
               <Sparkles className="h-8 w-8 text-yellow-500" />
-              축하합니다!
+              🎉 축하합니다! 🎉
               <Sparkles className="h-8 w-8 text-yellow-500" />
             </DialogTitle>
           </DialogHeader>
           <div className="py-6">
             <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-blue-900 mb-2">
-              Welcome Cushman & Wakefield!
+            <h2 className="text-xl font-bold text-blue-900 mb-4">
+              온보딩을 완료하신 것을 축하합니다!
             </h2>
-            <p className="text-gray-600 mb-6">
-              온보딩 과정을 모두 완료하셨습니다.<br />
-              C&W Korea의 새로운 가족이 되신 것을 환영합니다!
-            </p>
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-6">
+              <p className="text-lg font-bold text-gray-800">
+                HR에 방문하셔서 이걸 보여주시면 입사 선물을 받을 수 있어요!
+              </p>
+            </div>
             <Button
               onClick={() => setShowCelebration(false)}
               className="bg-blue-900 hover:bg-blue-800 text-white px-8 py-2"
-              data-testid="button-close-celebration"
+              data-testid="button-close-congrats"
             >
               확인
             </Button>

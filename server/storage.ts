@@ -37,7 +37,7 @@ export interface IStorage {
   getUserProgress(employeeId: string): Promise<UserProgress[]>;
   getContentProgress(employeeId: string, contentId: string): Promise<UserProgress | undefined>;
   createOrUpdateProgress(progress: InsertUserProgress): Promise<UserProgress>;
-  getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number }>;
+  getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number; isAllComplete: boolean }>;
   toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }>;
   
   sessionStore: session.Store;
@@ -198,15 +198,16 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number }> {
+  async getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number; isAllComplete: boolean }> {
     const allContent = await this.getAllContentIcons();
     const userProgressData = await this.getUserProgress(employeeId);
     
     const total = allContent.length;
     const completed = userProgressData.filter(p => p.completed === 1).length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const isAllComplete = total > 0 && completed === total;
     
-    return { completed, total, percentage };
+    return { completed, total, percentage, isAllComplete };
   }
 
   async cleanupDuplicateProgress(): Promise<void> {
