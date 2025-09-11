@@ -416,7 +416,7 @@ export default function UserDashboard() {
             </h2>
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-lg font-bold text-gray-800">
-                HR에 방문하셔서 이걸 보여주시면 입사 선물을 받을 수 있어요!
+                HR에 방문하셔서 완료 화면을 보여주시면 C&W Korea 의 입사 선물을 받을 수 있어요!
               </p>
             </div>
             <Button
