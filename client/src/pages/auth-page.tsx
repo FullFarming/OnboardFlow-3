@@ -89,8 +89,12 @@ export default function AuthPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            <div className="relative">
+            <div className="relative cursor-pointer" onClick={(e) => {
+              const input = e.currentTarget.querySelector('input');
+              if (input && e.target === e.currentTarget) input.focus();
+            }}>
               <Input
+                id="identifier-input"
                 name="identifier"
                 type="text"
                 required
@@ -98,11 +102,15 @@ export default function AuthPage() {
                 placeholder=" "
                 data-testid="input-name"
               />
-              <Label className="form-label">이름을 입력하세요</Label>
+              <Label htmlFor="identifier-input" className="form-label cursor-pointer">이름을 입력하세요</Label>
             </div>
 
-            <div className="relative">
+            <div className="relative cursor-pointer" onClick={(e) => {
+              const input = e.currentTarget.querySelector('input');
+              if (input && e.target === e.currentTarget) input.focus();
+            }}>
               <Input
+                id="credential-input"
                 name="credential"
                 type="tel"
                 required
@@ -112,7 +120,7 @@ export default function AuthPage() {
                 placeholder=" "
                 data-testid="input-phone"
               />
-              <Label className="form-label">휴대폰 번호 뒷 4자리</Label>
+              <Label htmlFor="credential-input" className="form-label cursor-pointer">휴대폰 번호 뒷 4자리</Label>
             </div>
 
             <Button
