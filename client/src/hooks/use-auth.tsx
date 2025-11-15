@@ -51,13 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.refetchQueries({ queryKey: ["/api/user"] });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   const registerMutation = useMutation({

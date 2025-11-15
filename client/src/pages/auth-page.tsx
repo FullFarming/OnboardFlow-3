@@ -11,7 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import loginBg from "@assets/image_1756258332288.png";
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -32,29 +32,43 @@ export default function AuthPage() {
     const identifier = formData.get("identifier") as string;
     const credential = formData.get("credential") as string;
 
-    // First try admin login
+    // First try employee login (most common case)
     try {
-      await loginMutation.mutateAsync({ username: identifier, password: credential });
-      toast({ title: "관리자 로그인 성공" });
-      setLocation("/admin");
+      const response = await apiRequest("POST", "/api/employee-login", {
+        userName: identifier,
+        userPassword: credential,
+      });
+      const employee = await response.json();
+      
+      // Store employee data in sessionStorage for the user dashboard
+      sessionStorage.setItem("currentEmployee", JSON.stringify(employee));
+      toast({ title: "신입사원 로그인 성공" });
+      setLocation("/dashboard");
       return;
-    } catch (error) {
-      // If admin login fails, try employee login
+    } catch (employeeError) {
+      // If employee login fails, try admin login
       try {
-        const response = await apiRequest("POST", "/api/employee-login", {
-          userName: identifier,
-          userPassword: credential,
+        await loginMutation.mutateAsync({
+          username: identifier,
+          password: credential,
         });
-        const employee = await response.json();
+        toast({ title: "관리자 로그인 성공" });
+        setLocation("/admin");
+      } catch (adminError) {
+        // Both employee and admin login failed
+        // Extract error message from Error object if available
+        let errorDescription = "입력하신 정보를 확인해주세요.";
+        if (adminError instanceof Error && adminError.message) {
+          // Error message format: "401: Unauthorized" - extract the text after ":"
+          const messageParts = adminError.message.split(": ");
+          if (messageParts.length > 1) {
+            errorDescription = messageParts.slice(1).join(": ");
+          }
+        }
         
-        // Store employee data in sessionStorage for the user dashboard
-        sessionStorage.setItem("currentEmployee", JSON.stringify(employee));
-        toast({ title: "신입사원 로그인 성공" });
-        setLocation("/dashboard");
-      } catch (employeeError) {
         toast({
           title: "로그인 실패",
-          description: "이름과 휴대폰 번호를 확인해주세요.",
+          description: errorDescription,
           variant: "destructive",
         });
       }
