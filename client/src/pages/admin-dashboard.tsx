@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("users");
   const [editingContent, setEditingContent] = useState<ContentIcon | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
@@ -57,6 +58,21 @@ export default function AdminDashboard() {
     },
     onError: () => {
       toast({ title: "사용자 삭제 실패", variant: "destructive" });
+    },
+  });
+
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PUT", `/api/employees/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({ title: "사용자 정보가 수정되었습니다." });
+      setEditingEmployee(null);
+    },
+    onError: () => {
+      toast({ title: "사용자 수정 실패", variant: "destructive" });
     },
   });
 
@@ -133,6 +149,23 @@ export default function AdminDashboard() {
     const formData = new FormData(formElement);
     
     updateContentMutation.mutate({ id: editingContent.id, data: formData });
+  };
+
+  const handleEmployeeEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingEmployee) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      userName: formData.get("userName") as string,
+      userPassword: formData.get("userPassword") as string,
+      email: formData.get("email") as string,
+      buddyName: formData.get("buddyName") as string,
+      lockerNumber: formData.get("lockerNumber") as string,
+      laptopInfo: formData.get("laptopInfo") as string,
+    };
+    
+    updateEmployeeMutation.mutate({ id: editingEmployee.id, data });
   };
 
   return (
@@ -312,6 +345,7 @@ export default function AdminDashboard() {
                                   variant="ghost"
                                   size="sm"
                                   className="text-brand-blue hover:text-blue-800"
+                                  onClick={() => setEditingEmployee(employee)}
                                   data-testid={`button-edit-employee-${employee.id}`}
                                 >
                                   <Edit className="h-4 w-4" />
@@ -475,6 +509,110 @@ export default function AdminDashboard() {
                   className="bg-brand-navy hover:bg-blue-800 text-white"
                   disabled={updateContentMutation.isPending}
                   data-testid="button-save-edit"
+                >
+                  수정 완료
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Employee Modal */}
+      {editingEmployee && (
+        <Dialog open={true} onOpenChange={() => setEditingEmployee(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>사용자 정보 수정</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEmployeeEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input
+                    name="userName"
+                    required
+                    defaultValue={editingEmployee.userName}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-employee-name"
+                  />
+                  <Label className="form-label">이름 (한글)</Label>
+                </div>
+                <div className="relative">
+                  <Input
+                    name="userPassword"
+                    required
+                    defaultValue={editingEmployee.userPassword}
+                    maxLength={4}
+                    pattern="[0-9]{4}"
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-employee-password"
+                  />
+                  <Label className="form-label">휴대폰 번호 뒷 4자리</Label>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Input
+                  name="email"
+                  type="email"
+                  defaultValue={editingEmployee.email || ""}
+                  className="form-input peer"
+                  placeholder=""
+                  data-testid="input-edit-employee-email"
+                />
+                <Label className="form-label">이메일</Label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input
+                    name="buddyName"
+                    defaultValue={editingEmployee.buddyName || ""}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-employee-buddy"
+                  />
+                  <Label className="form-label">버디 이름</Label>
+                </div>
+                <div className="relative">
+                  <Input
+                    name="lockerNumber"
+                    defaultValue={editingEmployee.lockerNumber || ""}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-employee-locker"
+                  />
+                  <Label className="form-label">락커 번호</Label>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Input
+                  name="laptopInfo"
+                  defaultValue={editingEmployee.laptopInfo || ""}
+                  className="form-input peer"
+                  placeholder=""
+                  data-testid="input-edit-employee-laptop"
+                />
+                <Label className="form-label">노트북 정보</Label>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingEmployee(null)}
+                  data-testid="button-cancel-employee-edit"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-brand-navy hover:bg-blue-800 text-white"
+                  disabled={updateEmployeeMutation.isPending}
+                  data-testid="button-save-employee-edit"
                 >
                   수정 완료
                 </Button>
