@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload } from "lucide-react";
-import { type Employee, type ContentIcon } from "@shared/schema";
+import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload, BookOpen, FileText, Hash, Eye } from "lucide-react";
+import { type Employee, type ContentIcon, type Department, type Manual } from "@shared/schema";
 import UploadForm from "@/components/upload-form";
 import dashboardBg from "@assets/image_1756257576204.png";
 
@@ -22,6 +22,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("users");
   const [editingContent, setEditingContent] = useState<ContentIcon | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editingManual, setEditingManual] = useState<Manual | null>(null);
+  const [newHashtag, setNewHashtag] = useState("");
+  const [manualHashtags, setManualHashtags] = useState<string[]>([]);
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
@@ -31,6 +34,16 @@ export default function AdminDashboard() {
   // Fetch content icons
   const { data: contentIcons = [], isLoading: contentLoading } = useQuery<ContentIcon[]>({
     queryKey: ["/api/content-icons"],
+  });
+
+  // Fetch departments
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
+
+  // Fetch manuals
+  const { data: manualsList = [], isLoading: manualsLoading } = useQuery<Manual[]>({
+    queryKey: ["/api/manuals"],
   });
 
   // Employee mutations
@@ -168,6 +181,105 @@ export default function AdminDashboard() {
     updateEmployeeMutation.mutate({ id: editingEmployee.id, data });
   };
 
+  // Manual mutations
+  const addManualMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch("/api/manuals", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Failed to create manual");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manuals"] });
+      toast({ title: "매뉴얼이 성공적으로 추가되었습니다." });
+      setManualHashtags([]);
+    },
+    onError: () => {
+      toast({ title: "매뉴얼 추가 실패", variant: "destructive" });
+    },
+  });
+
+  const updateManualMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: FormData }) => {
+      const response = await fetch(`/api/manuals/${id}`, {
+        method: "PUT",
+        body: data,
+      });
+      if (!response.ok) throw new Error("Failed to update manual");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manuals"] });
+      toast({ title: "매뉴얼이 성공적으로 수정되었습니다." });
+      setEditingManual(null);
+      setManualHashtags([]);
+    },
+    onError: () => {
+      toast({ title: "매뉴얼 수정 실패", variant: "destructive" });
+    },
+  });
+
+  const deleteManualMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/manuals/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manuals"] });
+      toast({ title: "매뉴얼이 삭제되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "매뉴얼 삭제 실패", variant: "destructive" });
+    },
+  });
+
+  const handleManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    formData.set("hashtags", JSON.stringify(manualHashtags));
+    addManualMutation.mutate(formData);
+    e.currentTarget.reset();
+    setManualHashtags([]);
+  };
+
+  const handleManualEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingManual) return;
+    const formData = new FormData(e.currentTarget);
+    formData.set("hashtags", JSON.stringify(manualHashtags));
+    updateManualMutation.mutate({ id: editingManual.id, data: formData });
+  };
+
+  const addHashtag = () => {
+    const tag = newHashtag.trim().replace(/^#/, '');
+    if (tag && !manualHashtags.includes(tag)) {
+      setManualHashtags([...manualHashtags, tag]);
+      setNewHashtag("");
+    }
+  };
+
+  const removeHashtag = (tag: string) => {
+    setManualHashtags(manualHashtags.filter(t => t !== tag));
+  };
+
+  const getDepartmentName = (deptId: string) => {
+    const dept = departments.find(d => d.id === deptId);
+    return dept?.name || "Unknown";
+  };
+
+  const getDepartmentColor = (deptId: string) => {
+    const dept = departments.find(d => d.id === deptId);
+    return dept?.color || "#3B82F6";
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "-";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
   return (
     <div 
       className="min-h-screen bg-gray-50"
@@ -201,7 +313,7 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-xl">
             <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
               <Users className="h-4 w-4" />
               사용자 관리
@@ -209,6 +321,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="content" className="flex items-center gap-2" data-testid="tab-content">
               <Grid3X3 className="h-4 w-4" />
               콘텐츠 관리
+            </TabsTrigger>
+            <TabsTrigger value="manuals" className="flex items-center gap-2" data-testid="tab-manuals">
+              <BookOpen className="h-4 w-4" />
+              매뉴얼 관리
             </TabsTrigger>
           </TabsList>
 
@@ -430,6 +546,210 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Manuals Tab */}
+          <TabsContent value="manuals" className="space-y-6">
+            {/* Add Manual Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  신규 매뉴얼 등록
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative">
+                      <Input
+                        name="title"
+                        required
+                        className="form-input peer"
+                        placeholder=""
+                        data-testid="input-manual-title"
+                      />
+                      <Label className="form-label">매뉴얼 제목</Label>
+                    </div>
+                    <div className="relative">
+                      <Select name="departmentId" required>
+                        <SelectTrigger className="form-input">
+                          <SelectValue placeholder="부서 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              <span className="flex items-center gap-2">
+                                <span 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: dept.color || "#3B82F6" }}
+                                />
+                                {dept.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <Input
+                      name="file"
+                      type="file"
+                      accept=".pdf"
+                      required
+                      className="form-input peer pt-2"
+                      data-testid="input-manual-file"
+                    />
+                    <Label className="form-label">PDF 파일 (최대 20MB)</Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>해시태그</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newHashtag}
+                        onChange={(e) => setNewHashtag(e.target.value)}
+                        placeholder="#태그입력"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addHashtag();
+                          }
+                        }}
+                        data-testid="input-manual-hashtag"
+                      />
+                      <Button type="button" variant="outline" onClick={addHashtag}>
+                        <Hash className="h-4 w-4 mr-1" />
+                        추가
+                      </Button>
+                    </div>
+                    {manualHashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {manualHashtags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                          >
+                            #{tag}
+                            <button
+                              type="button"
+                              onClick={() => removeHashtag(tag)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="bg-brand-navy hover:bg-blue-800 text-white"
+                    disabled={addManualMutation.isPending}
+                    data-testid="button-add-manual"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    매뉴얼 추가
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Manuals List */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  등록된 매뉴얼 목록
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {manualsLoading ? (
+                  <div className="text-center py-8 text-gray-500">로딩 중...</div>
+                ) : manualsList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">등록된 매뉴얼이 없습니다.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>제목</TableHead>
+                        <TableHead>부서</TableHead>
+                        <TableHead>해시태그</TableHead>
+                        <TableHead>파일크기</TableHead>
+                        <TableHead className="text-center">조회수</TableHead>
+                        <TableHead className="text-right">관리</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {manualsList.map((manual) => (
+                        <TableRow key={manual.id}>
+                          <TableCell className="font-medium">
+                            <a 
+                              href={manual.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {manual.title}
+                            </a>
+                          </TableCell>
+                          <TableCell>
+                            <span 
+                              className="px-2 py-1 rounded text-white text-xs font-medium"
+                              style={{ backgroundColor: getDepartmentColor(manual.departmentId) }}
+                            >
+                              {getDepartmentName(manual.departmentId)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {manual.hashtags?.slice(0, 3).map((tag) => (
+                                <span key={tag} className="text-xs text-blue-600">#{tag}</span>
+                              ))}
+                              {manual.hashtags && manual.hashtags.length > 3 && (
+                                <span className="text-xs text-gray-400">+{manual.hashtags.length - 3}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatFileSize(manual.fileSize)}</TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center gap-1">
+                              <Eye className="h-3 w-3 text-gray-400" />
+                              {manual.viewCount || 0}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-brand-blue hover:text-blue-800"
+                              onClick={() => {
+                                setEditingManual(manual);
+                                setManualHashtags(manual.hashtags || []);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-brand-red hover:text-red-800"
+                              onClick={() => deleteManualMutation.mutate(manual.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -613,6 +933,124 @@ export default function AdminDashboard() {
                   className="bg-brand-navy hover:bg-blue-800 text-white"
                   disabled={updateEmployeeMutation.isPending}
                   data-testid="button-save-employee-edit"
+                >
+                  수정 완료
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Manual Modal */}
+      {editingManual && (
+        <Dialog open={true} onOpenChange={() => { setEditingManual(null); setManualHashtags([]); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>매뉴얼 수정</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleManualEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input
+                    name="title"
+                    required
+                    defaultValue={editingManual.title}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-manual-title"
+                  />
+                  <Label className="form-label">매뉴얼 제목</Label>
+                </div>
+                <div className="relative">
+                  <Select name="departmentId" defaultValue={editingManual.departmentId}>
+                    <SelectTrigger className="form-input">
+                      <SelectValue placeholder="부서 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          <span className="flex items-center gap-2">
+                            <span 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: dept.color || "#3B82F6" }}
+                            />
+                            {dept.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <Input
+                  name="file"
+                  type="file"
+                  accept=".pdf"
+                  className="form-input peer pt-2"
+                  data-testid="input-edit-manual-file"
+                />
+                <Label className="form-label">새 PDF 파일 (선택사항)</Label>
+                <p className="text-sm text-gray-500 mt-1">현재 파일: {editingManual.fileName}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>해시태그</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newHashtag}
+                    onChange={(e) => setNewHashtag(e.target.value)}
+                    placeholder="#태그입력"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addHashtag();
+                      }
+                    }}
+                    data-testid="input-edit-manual-hashtag"
+                  />
+                  <Button type="button" variant="outline" onClick={addHashtag}>
+                    <Hash className="h-4 w-4 mr-1" />
+                    추가
+                  </Button>
+                </div>
+                {manualHashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {manualHashtags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                      >
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => removeHashtag(tag)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setEditingManual(null); setManualHashtags([]); }}
+                  data-testid="button-cancel-manual-edit"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-brand-navy hover:bg-blue-800 text-white"
+                  disabled={updateManualMutation.isPending}
+                  data-testid="button-save-manual-edit"
                 >
                   수정 완료
                 </Button>
