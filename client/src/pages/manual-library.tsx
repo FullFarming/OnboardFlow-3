@@ -128,9 +128,8 @@ export default function ManualLibrary() {
           </div>
         </div>
       </header>
-
       <div className="px-3 py-4">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 text-[#ffffff]">
           <Link href="/dashboard">
             <Button variant="ghost" size="sm" className="p-2">
               <ArrowLeft className="h-5 w-5" />
@@ -245,7 +244,6 @@ export default function ManualLibrary() {
           </div>
         )}
       </div>
-
       <PDFViewerModal
         isOpen={!!selectedManual}
         fileUrl={selectedManual?.fileUrl || ""}
