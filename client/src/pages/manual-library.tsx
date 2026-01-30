@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BookOpen, Search, Menu, Home, LogOut, FileText, Eye, ArrowLeft, X, ChevronLeft, ChevronRight, Download, Hash } from "lucide-react";
+import { BookOpen, Search, Menu, Home, LogOut, FileText, Eye, ArrowLeft, Download } from "lucide-react";
+import PDFViewerModal from "@/components/PDFViewerModal";
 import { type Employee, type Department, type Manual } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -246,52 +246,14 @@ export default function ManualLibrary() {
         )}
       </div>
 
-      <Dialog open={!!selectedManual} onOpenChange={() => setSelectedManual(null)}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-          <DialogHeader className="p-4 border-b flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-8">
-                <DialogTitle className="text-lg">{selectedManual?.title}</DialogTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  {selectedManual && getDepartmentById(selectedManual.departmentId) && (
-                    <span 
-                      className="text-xs px-2 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: getDepartmentById(selectedManual.departmentId)?.color || "#3B82F6" }}
-                    >
-                      {getDepartmentById(selectedManual.departmentId)?.name}
-                    </span>
-                  )}
-                  {selectedManual?.hashtags?.map((tag) => (
-                    <span key={tag} className="text-xs text-blue-600">#{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <a 
-                  href={selectedManual?.fileUrl} 
-                  download={selectedManual?.fileName}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-1" />
-                    다운로드
-                  </Button>
-                </a>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden bg-gray-100">
-            {selectedManual && (
-              <iframe
-                src={selectedManual.fileUrl}
-                className="w-full h-full"
-                title={selectedManual.title}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PDFViewerModal
+        isOpen={!!selectedManual}
+        fileUrl={selectedManual?.fileUrl || ""}
+        title={selectedManual?.title || ""}
+        department={selectedManual ? getDepartmentById(selectedManual.departmentId) : null}
+        hashtags={selectedManual?.hashtags || []}
+        onClose={() => setSelectedManual(null)}
+      />
     </div>
   );
 }

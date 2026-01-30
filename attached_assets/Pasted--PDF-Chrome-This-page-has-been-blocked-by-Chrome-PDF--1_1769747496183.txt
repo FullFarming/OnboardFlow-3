@@ -1,0 +1,932 @@
+# 🔧 PDF 뷰어 Chrome 차단 문제 해결 가이드
+
+> **문제:** "This page has been blocked by Chrome" 에러로 PDF가 표시되지 않음  
+> **환경:** Replit 호스팅 웹앱
+
+---
+
+## 📋 목차
+
+1. [문제 원인 분석](#1-문제-원인-분석)
+2. [해결 방법 1: react-pdf 라이브러리 사용 (권장)](#2-해결-방법-1-react-pdf-라이브러리-사용-권장)
+3. [해결 방법 2: PDF.js 직접 구현](#3-해결-방법-2-pdfjs-직접-구현)
+4. [해결 방법 3: Google Docs Viewer 사용](#4-해결-방법-3-google-docs-viewer-사용)
+5. [파일 업로드 및 저장 설정](#5-파일-업로드-및-저장-설정)
+6. [CORS 및 보안 헤더 설정](#6-cors-및-보안-헤더-설정)
+7. [전체 코드 예시](#7-전체-코드-예시)
+8. [문제 해결 체크리스트](#8-문제-해결-체크리스트)
+
+---
+
+## 1. 문제 원인 분석
+
+### 1.1 "This page has been blocked by Chrome" 발생 원인
+
+| 원인 | 설명 | 해결 방향 |
+|------|------|----------|
+| **iframe 직접 로드** | Chrome이 외부 PDF를 iframe에서 직접 로드하는 것을 차단 | PDF.js 또는 react-pdf 사용 |
+| **CORS 정책** | PDF 파일 서버에서 CORS 헤더가 설정되지 않음 | 서버에 CORS 헤더 추가 |
+| **Mixed Content** | HTTPS 페이지에서 HTTP PDF 로드 시도 | 모든 URL을 HTTPS로 통일 |
+| **X-Frame-Options** | PDF 호스팅 서버가 iframe 임베딩 차단 | 자체 서버에서 PDF 제공 또는 PDF.js 사용 |
+
+### 1.2 현재 코드 문제점 (추정)
+
+```jsx
+// ❌ 문제가 되는 코드 (iframe 직접 사용)
+const PDFViewer = ({ url }) => {
+  return (
+    <iframe 
+      src={url}  // 외부 URL 직접 로드 시 Chrome 차단
+      width="100%" 
+      height="600px"
+    />
+  );
+};
+```
+
+---
+
+## 2. 해결 방법 1: react-pdf 라이브러리 사용 (권장)
+
+### 2.1 패키지 설치
+
+```bash
+npm install react-pdf
+# 또는
+yarn add react-pdf
+```
+
+### 2.2 PDF 뷰어 컴포넌트 생성
+
+**파일 위치:** `client/src/components/PDFViewer.jsx`
+
+```jsx
+import React, { useState, useRef, useEffect } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// ⚠️ 중요: PDF.js 워커 설정 (반드시 필요)
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
+// CSS 임포트 (텍스트 선택 및 주석 레이어용)
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+const PDFViewer = ({ 
+  fileUrl,        // PDF 파일 URL
+  fileName,       // 파일명 (다운로드용)
+  title,          // 표시 제목
+  department,     // 부서 정보
+  hashtags = [],  // 해시태그 배열
+  onClose         // 닫기 콜백
+}) => {
+  // 상태 관리
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [scale, setScale] = useState(1.0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const containerRef = useRef(null);
+
+  // 컨테이너 너비에 맞게 스케일 자동 조정
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        // A4 기준 너비 612pt, 패딩 32px 제외
+        const optimalScale = (containerWidth - 32) / 612;
+        setScale(Math.min(optimalScale, 1.5)); // 최대 1.5배
+      }
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  // PDF 로드 성공
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+    setLoading(false);
+    setError(null);
+  };
+
+  // PDF 로드 실패
+  const onDocumentLoadError = (error) => {
+    console.error('PDF 로드 오류:', error);
+    setLoading(false);
+    setError('PDF 파일을 불러올 수 없습니다. 다시 시도해주세요.');
+  };
+
+  // 페이지 이동
+  const goToPrevPage = () => setPageNumber(prev => Math.max(prev - 1, 1));
+  const goToNextPage = () => setPageNumber(prev => Math.min(prev + 1, numPages || 1));
+
+  // 확대/축소
+  const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
+  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
+
+  // PDF 다운로드
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || 'manual.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('다운로드 오류:', err);
+      // 폴백: 새 탭에서 열기
+      window.open(fileUrl, '_blank');
+    }
+  };
+
+  // 스와이프 제스처 (모바일)
+  const [touchStart, setTouchStart] = useState(null);
+  
+  const handleTouchStart = (e) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+  
+  const handleTouchEnd = (e) => {
+    if (!touchStart) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? goToNextPage() : goToPrevPage();
+    }
+    setTouchStart(null);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      {/* 헤더 */}
+      <header className="flex items-center justify-between px-4 py-3 border-b bg-white shadow-sm">
+        <button 
+          onClick={onClose}
+          className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+          aria-label="닫기"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        
+        <div className="flex-1 text-center px-4">
+          <h1 className="font-semibold text-gray-900 truncate">{title}</h1>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            {department && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                {department}
+              </span>
+            )}
+            {hashtags.slice(0, 3).map((tag, i) => (
+              <span key={i} className="text-xs text-gray-500">#{tag}</span>
+            ))}
+          </div>
+        </div>
+        
+        <button 
+          onClick={handleDownload}
+          className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition-colors"
+          aria-label="다운로드"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
+      </header>
+
+      {/* PDF 뷰어 영역 */}
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-auto bg-gray-100"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* 로딩 상태 */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4" />
+            <p className="text-gray-500">PDF를 불러오는 중...</p>
+          </div>
+        )}
+
+        {/* 에러 상태 */}
+        {error && (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+            <svg className="w-16 h-16 text-red-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {/* PDF 문서 */}
+        <Document
+          file={fileUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={null}
+          className="flex flex-col items-center py-4"
+          options={{
+            cMapUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+            cMapPacked: true,
+          }}
+        >
+          <Page 
+            pageNumber={pageNumber}
+            scale={scale}
+            className="shadow-lg bg-white"
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
+            loading={
+              <div className="w-full h-96 bg-gray-200 animate-pulse rounded" />
+            }
+          />
+        </Document>
+      </div>
+
+      {/* 하단 컨트롤 바 */}
+      <footer className="flex items-center justify-between px-4 py-3 border-t bg-white safe-area-bottom">
+        {/* 페이지 네비게이션 */}
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={goToPrevPage}
+            disabled={pageNumber <= 1}
+            className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="이전 페이지"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <span className="text-sm text-gray-600 min-w-[70px] text-center font-medium">
+            {pageNumber} / {numPages || '-'}
+          </span>
+          
+          <button 
+            onClick={goToNextPage}
+            disabled={pageNumber >= numPages}
+            className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="다음 페이지"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 확대/축소 */}
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={zoomOut}
+            disabled={scale <= 0.5}
+            className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-30 transition-colors"
+            aria-label="축소"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            </svg>
+          </button>
+          
+          <span className="text-sm text-gray-600 min-w-[50px] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          
+          <button 
+            onClick={zoomIn}
+            disabled={scale >= 3}
+            className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-30 transition-colors"
+            aria-label="확대"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default PDFViewer;
+```
+
+### 2.3 CSS 추가 (선택사항)
+
+**파일 위치:** `client/src/styles/pdf-viewer.css`
+
+```css
+/* PDF 뷰어 스타일 */
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  margin-bottom: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.react-pdf__Page canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* 텍스트 레이어 (선택 가능하게) */
+.react-pdf__Page__textContent {
+  user-select: text;
+}
+
+/* 주석 레이어 (링크 클릭 가능하게) */
+.react-pdf__Page__annotations {
+  pointer-events: auto;
+}
+
+/* iOS Safe Area */
+.safe-area-bottom {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+/* 로딩 애니메이션 */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+```
+
+### 2.4 사용 예시
+
+```jsx
+// ManualLibrary.jsx 또는 해당 페이지에서
+import PDFViewer from './components/PDFViewer';
+
+const ManualLibrary = () => {
+  const [selectedManual, setSelectedManual] = useState(null);
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+
+  const handleManualClick = (manual) => {
+    setSelectedManual(manual);
+    setShowPDFViewer(true);
+  };
+
+  const handleClosePDF = () => {
+    setShowPDFViewer(false);
+    setSelectedManual(null);
+  };
+
+  return (
+    <div>
+      {/* 매뉴얼 목록 */}
+      {manuals.map(manual => (
+        <div 
+          key={manual.id}
+          onClick={() => handleManualClick(manual)}
+          className="cursor-pointer"
+        >
+          {manual.title}
+        </div>
+      ))}
+
+      {/* PDF 뷰어 모달 */}
+      {showPDFViewer && selectedManual && (
+        <PDFViewer
+          fileUrl={selectedManual.fileUrl}
+          fileName={selectedManual.fileName}
+          title={selectedManual.title}
+          department={selectedManual.department?.name}
+          hashtags={selectedManual.hashtags}
+          onClose={handleClosePDF}
+        />
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## 3. 해결 방법 2: PDF.js 직접 구현
+
+react-pdf가 작동하지 않을 경우 PDF.js를 직접 사용합니다.
+
+### 3.1 HTML에 PDF.js CDN 추가
+
+**파일 위치:** `client/index.html`
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C&W Korea 온보딩</title>
+  
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>
+```
+
+### 3.2 Canvas 기반 PDF 뷰어
+
+```jsx
+// components/PDFViewerCanvas.jsx
+import React, { useEffect, useRef, useState } from 'react';
+
+const PDFViewerCanvas = ({ fileUrl, title, onClose }) => {
+  const canvasRef = useRef(null);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [pageNum, setPageNum] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [scale, setScale] = useState(1.5);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // PDF 로드
+  useEffect(() => {
+    const loadPDF = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // PDF.js로 문서 로드
+        const loadingTask = window.pdfjsLib.getDocument(fileUrl);
+        const pdf = await loadingTask.promise;
+        
+        setPdfDoc(pdf);
+        setTotalPages(pdf.numPages);
+        setLoading(false);
+      } catch (err) {
+        console.error('PDF 로드 오류:', err);
+        setError('PDF를 불러올 수 없습니다.');
+        setLoading(false);
+      }
+    };
+
+    loadPDF();
+  }, [fileUrl]);
+
+  // 페이지 렌더링
+  useEffect(() => {
+    const renderPage = async () => {
+      if (!pdfDoc || !canvasRef.current) return;
+
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        
+        // Canvas 크기 설정
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        // 페이지 렌더링
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+      } catch (err) {
+        console.error('페이지 렌더링 오류:', err);
+      }
+    };
+
+    renderPage();
+  }, [pdfDoc, pageNum, scale]);
+
+  const goToPrev = () => setPageNum(prev => Math.max(prev - 1, 1));
+  const goToNext = () => setPageNum(prev => Math.min(prev + 1, totalPages));
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      {/* 헤더 */}
+      <header className="flex items-center justify-between px-4 py-3 border-b">
+        <button onClick={onClose} className="p-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <h1 className="font-semibold truncate flex-1 text-center px-4">{title}</h1>
+        <div className="w-10" />
+      </header>
+
+      {/* PDF 캔버스 영역 */}
+      <div className="flex-1 overflow-auto bg-gray-100 flex justify-center p-4">
+        {loading && (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
+          </div>
+        )}
+        
+        {error && (
+          <div className="flex items-center justify-center h-full text-red-500">
+            {error}
+          </div>
+        )}
+        
+        <canvas 
+          ref={canvasRef} 
+          className="shadow-lg bg-white"
+          style={{ display: loading ? 'none' : 'block' }}
+        />
+      </div>
+
+      {/* 하단 컨트롤 */}
+      <footer className="flex items-center justify-center gap-4 px-4 py-3 border-t">
+        <button 
+          onClick={goToPrev} 
+          disabled={pageNum <= 1}
+          className="p-2 disabled:opacity-30"
+        >
+          이전
+        </button>
+        <span>{pageNum} / {totalPages}</span>
+        <button 
+          onClick={goToNext} 
+          disabled={pageNum >= totalPages}
+          className="p-2 disabled:opacity-30"
+        >
+          다음
+        </button>
+      </footer>
+    </div>
+  );
+};
+
+export default PDFViewerCanvas;
+```
+
+---
+
+## 4. 해결 방법 3: Google Docs Viewer 사용
+
+가장 간단한 방법이지만 제한이 있습니다.
+
+### 4.1 장단점
+
+| 장점 | 단점 |
+|------|------|
+| 구현이 매우 간단 | 파일이 공개 접근 가능해야 함 |
+| 별도 라이브러리 불필요 | 25MB 파일 크기 제한 |
+| 대부분의 PDF 지원 | Google 서버 의존 |
+
+### 4.2 구현
+
+```jsx
+// ⚠️ 파일 URL이 공개적으로 접근 가능해야 함
+const GoogleDocsViewer = ({ fileUrl, title, onClose }) => {
+  // URL 인코딩
+  const encodedUrl = encodeURIComponent(fileUrl);
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      <header className="flex items-center justify-between px-4 py-3 border-b">
+        <button onClick={onClose} className="p-2">닫기</button>
+        <h1 className="font-semibold">{title}</h1>
+        <a href={fileUrl} download className="p-2">다운로드</a>
+      </header>
+      
+      <iframe
+        src={viewerUrl}
+        className="flex-1 w-full border-none"
+        title={title}
+      />
+    </div>
+  );
+};
+```
+
+---
+
+## 5. 파일 업로드 및 저장 설정
+
+### 5.1 서버 사이드: 파일 업로드 API
+
+**파일 위치:** `server/routes/upload.js`
+
+```javascript
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+
+const router = express.Router();
+
+// 업로드 폴더 생성
+const uploadDir = path.join(__dirname, '../uploads/manuals');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer 설정
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // 고유 파일명 생성
+    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('PDF 파일만 업로드 가능합니다.'), false);
+    }
+  }
+});
+
+// 파일 업로드 엔드포인트
+router.post('/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '파일이 없습니다.' });
+    }
+
+    // 파일 URL 생성 (Replit 환경)
+    const fileUrl = `/api/files/${req.file.filename}`;
+    
+    res.json({
+      success: true,
+      fileUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size
+    });
+  } catch (error) {
+    console.error('업로드 오류:', error);
+    res.status(500).json({ error: '업로드 실패' });
+  }
+});
+
+// 파일 제공 엔드포인트 (중요!)
+router.get('/files/:filename', (req, res) => {
+  const filePath = path.join(uploadDir, req.params.filename);
+  
+  // 파일 존재 확인
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
+  }
+
+  // ⚠️ 중요: CORS 및 Content-Type 헤더 설정
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // 파일 스트림 전송
+  const fileStream = fs.createReadStream(filePath);
+  fileStream.pipe(res);
+});
+
+module.exports = router;
+```
+
+### 5.2 서버 메인 파일에 라우트 추가
+
+**파일 위치:** `server/index.js`
+
+```javascript
+const express = require('express');
+const cors = require('cors');
+const uploadRoutes = require('./routes/upload');
+
+const app = express();
+
+// CORS 설정 (중요!)
+app.use(cors({
+  origin: '*', // 또는 특정 도메인
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
+// 정적 파일 제공 (업로드된 파일)
+app.use('/uploads', express.static('uploads'));
+
+// API 라우트
+app.use('/api', uploadRoutes);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+
+---
+
+## 6. CORS 및 보안 헤더 설정
+
+### 6.1 Express 미들웨어 설정
+
+```javascript
+// server/middleware/headers.js
+const setSecurityHeaders = (req, res, next) => {
+  // CORS 허용
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // PDF iframe 임베딩 허용
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  
+  // Content Security Policy
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://unpkg.com; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob:; " +
+    "frame-src 'self' blob:; " +
+    "worker-src 'self' blob: https://unpkg.com https://cdnjs.cloudflare.com;"
+  );
+  
+  next();
+};
+
+module.exports = setSecurityHeaders;
+```
+
+### 6.2 Replit 환경 설정
+
+**.replit 파일 (이미 존재할 경우 수정)**
+
+```toml
+run = "npm start"
+
+[env]
+NODE_ENV = "production"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+```
+
+---
+
+## 7. 전체 코드 예시
+
+### 7.1 프로젝트 구조
+
+```
+project/
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── PDFViewer.jsx        # PDF 뷰어 컴포넌트
+│   │   │   ├── ManualCard.jsx       # 매뉴얼 카드
+│   │   │   └── ManualLibrary.jsx    # 매뉴얼 라이브러리 페이지
+│   │   ├── styles/
+│   │   │   └── pdf-viewer.css
+│   │   └── App.jsx
+│   └── index.html
+├── server/
+│   ├── routes/
+│   │   ├── upload.js
+│   │   └── manuals.js
+│   ├── middleware/
+│   │   └── headers.js
+│   ├── uploads/
+│   │   └── manuals/                 # PDF 파일 저장 폴더
+│   └── index.js
+├── package.json
+└── .replit
+```
+
+### 7.2 package.json 의존성
+
+```json
+{
+  "name": "onboarding-system",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-pdf": "^7.7.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.0"
+  }
+}
+```
+
+### 7.3 설치 및 실행
+
+```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
+npm run dev
+```
+
+---
+
+## 8. 문제 해결 체크리스트
+
+### 8.1 디버깅 순서
+
+```
+□ Step 1: 브라우저 개발자 도구 콘솔에서 에러 확인
+□ Step 2: Network 탭에서 PDF 파일 요청 상태 확인
+□ Step 3: PDF URL이 접근 가능한지 직접 브라우저에서 열어보기
+□ Step 4: CORS 헤더가 제대로 설정되어 있는지 확인
+□ Step 5: PDF.js 워커가 로드되는지 확인
+```
+
+### 8.2 일반적인 오류 및 해결
+
+| 오류 | 원인 | 해결 |
+|------|------|------|
+| `Failed to load PDF` | PDF URL 접근 불가 | 서버에서 파일 제공 확인 |
+| `CORS error` | CORS 헤더 없음 | 서버에 CORS 설정 추가 |
+| `Worker error` | PDF.js 워커 로드 실패 | CDN URL 확인 |
+| `Blocked by Chrome` | iframe 직접 로드 | react-pdf 또는 PDF.js 사용 |
+| `Mixed content` | HTTP/HTTPS 혼합 | 모든 URL HTTPS로 변경 |
+
+### 8.3 테스트 방법
+
+```javascript
+// PDF URL 접근 테스트
+const testPDFAccess = async (url) => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    console.log('Status:', response.status);
+    console.log('Content-Type:', response.headers.get('content-type'));
+    console.log('CORS:', response.headers.get('access-control-allow-origin'));
+    return response.ok;
+  } catch (error) {
+    console.error('PDF 접근 오류:', error);
+    return false;
+  }
+};
+
+// 브라우저 콘솔에서 실행
+testPDFAccess('YOUR_PDF_URL_HERE');
+```
+
+### 8.4 최종 확인 사항
+
+- [ ] `npm install react-pdf` 완료
+- [ ] PDF.js 워커 URL 설정 완료
+- [ ] 서버에서 PDF 파일 제공 엔드포인트 생성
+- [ ] CORS 헤더 설정 완료
+- [ ] PDF 뷰어 컴포넌트 import 및 사용
+- [ ] 모바일 테스트 완료
+
+---
+
+## 📞 추가 지원
+
+이 가이드로도 해결되지 않는 경우:
+
+1. 브라우저 콘솔 에러 메시지 캡처
+2. Network 탭의 PDF 요청 정보 캡처
+3. 서버 로그 확인
+
+위 정보와 함께 문의해주시면 추가 지원 가능합니다.
+
+---
+
+> **문서 버전:** 1.0  
+> **최종 수정:** 2025-01-30  
+> **작성:** Claude AI
