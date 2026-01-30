@@ -120,7 +120,9 @@ export default function ManualLibrary() {
                   </nav>
                 </SheetContent>
               </Sheet>
-              <img src={cwLogo} alt="C&W Korea Logo" className="h-8 w-auto" />
+              <Link href="/dashboard">
+                <img src={cwLogo} alt="C&W Korea Logo" className="h-8 w-auto cursor-pointer" />
+              </Link>
             </div>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-gray-700 p-2">
               <LogOut className="h-4 w-4" />

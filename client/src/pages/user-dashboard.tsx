@@ -271,8 +271,9 @@ export default function UserDashboard() {
                 <img 
                   src={cwLogo} 
                   alt="C&W Korea Logo" 
-                  className="h-8 w-auto"
+                  className="h-8 w-auto cursor-pointer"
                   data-testid="img-cw-logo"
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 />
               </div>
               <Button 
