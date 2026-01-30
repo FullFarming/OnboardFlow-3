@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BookOpen, Search, Menu, Home, LogOut, FileText, Eye, ArrowLeft, X, ChevronLeft, ChevronRight, Download, Hash } from "lucide-react";
 import { type Employee, type Department, type Manual } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import dashboardBg from "@assets/image_1756257576204.png";
 import cwLogo from "@assets/CW_Logo_Color-removebg-preview (1)_1756259032675.png";
 
@@ -51,6 +51,7 @@ export default function ManualLibrary() {
 
   const handleManualClick = async (manual: Manual) => {
     await fetch(`/api/manuals/${manual.id}/view`, { method: "POST" });
+    queryClient.invalidateQueries({ queryKey: ["/api/manuals", selectedDepartment, searchTerm] });
     setSelectedManual(manual);
   };
 
