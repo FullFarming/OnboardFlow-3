@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight, CheckCircle2, Trophy, Sparkles } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight, CheckCircle2, Trophy, Sparkles, Menu, BookOpen, Home, X } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -19,6 +20,7 @@ export default function UserDashboard() {
   const [selectedContent, setSelectedContent] = useState<ContentIcon | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [wasAllComplete, setWasAllComplete] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
 
   // Get employee data from sessionStorage
@@ -210,12 +212,69 @@ export default function UserDashboard() {
         <div className="px-3 py-3">
           <div className="flex flex-col space-y-3">
             <div className="flex justify-between items-center">
-              <img 
-                src={cwLogo} 
-                alt="C&W Korea Logo" 
-                className="h-8 w-auto"
-                data-testid="img-cw-logo"
-              />
+              <div className="flex items-center gap-3">
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="p-2"
+                      data-testid="button-menu"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-72">
+                    <SheetHeader>
+                      <SheetTitle className="text-left">
+                        <img 
+                          src={cwLogo} 
+                          alt="C&W Korea Logo" 
+                          className="h-8 w-auto"
+                        />
+                      </SheetTitle>
+                    </SheetHeader>
+                    <nav className="mt-6 flex flex-col gap-2">
+                      <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start gap-3 text-left"
+                        >
+                          <Home className="h-5 w-5" />
+                          홈
+                        </Button>
+                      </Link>
+                      <Link href="/manual-library" onClick={() => setMenuOpen(false)}>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start gap-3 text-left"
+                        >
+                          <BookOpen className="h-5 w-5" />
+                          매뉴얼 라이브러리
+                        </Button>
+                      </Link>
+                      <div className="border-t my-4" />
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start gap-3 text-left text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          handleLogout();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <LogOut className="h-5 w-5" />
+                        로그아웃
+                      </Button>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+                <img 
+                  src={cwLogo} 
+                  alt="C&W Korea Logo" 
+                  className="h-8 w-auto"
+                  data-testid="img-cw-logo"
+                />
+              </div>
               <Button 
                 variant="ghost" 
                 size="sm"
