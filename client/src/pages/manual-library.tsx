@@ -135,7 +135,7 @@ export default function ManualLibrary() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2 text-[#ffffff]">
             <BookOpen className="h-6 w-6 text-brand-navy" />
             매뉴얼 라이브러리
           </h1>
