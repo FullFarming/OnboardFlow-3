@@ -1,6 +1,6 @@
-import { employees, contentIcons, admins, contentImages, userProgress, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress } from "@shared/schema";
+import { employees, contentIcons, admins, contentImages, userProgress, departments, manuals, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress, type Department, type InsertDepartment, type Manual, type InsertManual } from "@shared/schema";
 import { db } from "./db";
-import { eq, asc, and, sql } from "drizzle-orm";
+import { eq, asc, and, sql, desc, ilike, or } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -39,6 +39,21 @@ export interface IStorage {
   createOrUpdateProgress(progress: InsertUserProgress): Promise<UserProgress>;
   getProgressSummary(employeeId: string): Promise<{ completed: number; total: number; percentage: number; isAllComplete: boolean }>;
   toggleContentCompletion(employeeId: string, contentId: string): Promise<{ completed: boolean; progress: UserProgress }>;
+  
+  // Department methods
+  getAllDepartments(): Promise<Department[]>;
+  getDepartment(id: string): Promise<Department | undefined>;
+  createDepartment(department: InsertDepartment): Promise<Department>;
+  updateDepartment(id: string, department: Partial<InsertDepartment>): Promise<Department>;
+  deleteDepartment(id: string): Promise<void>;
+  
+  // Manual methods
+  getAllManuals(filters?: { departmentId?: string; search?: string }): Promise<Manual[]>;
+  getManual(id: string): Promise<Manual | undefined>;
+  createManual(manual: InsertManual): Promise<Manual>;
+  updateManual(id: string, manual: Partial<InsertManual>): Promise<Manual>;
+  deleteManual(id: string): Promise<void>;
+  incrementManualViewCount(id: string): Promise<void>;
   
   sessionStore: session.Store;
 }
@@ -288,6 +303,102 @@ export class DatabaseStorage implements IStorage {
       completed: newCompletedValue === 1,
       progress,
     };
+  }
+
+  // Department methods
+  async getAllDepartments(): Promise<Department[]> {
+    return await db.select().from(departments)
+      .where(eq(departments.isActive, true))
+      .orderBy(asc(departments.name));
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    const [department] = await db.select().from(departments).where(eq(departments.id, id));
+    return department || undefined;
+  }
+
+  async createDepartment(insertDepartment: InsertDepartment): Promise<Department> {
+    const [department] = await db
+      .insert(departments)
+      .values(insertDepartment)
+      .returning();
+    return department;
+  }
+
+  async updateDepartment(id: string, updateData: Partial<InsertDepartment>): Promise<Department> {
+    const [department] = await db
+      .update(departments)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(departments.id, id))
+      .returning();
+    return department;
+  }
+
+  async deleteDepartment(id: string): Promise<void> {
+    // Soft delete - set isActive to false
+    await db.update(departments)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(departments.id, id));
+  }
+
+  // Manual methods
+  async getAllManuals(filters?: { departmentId?: string; search?: string }): Promise<Manual[]> {
+    let query = db.select().from(manuals).where(eq(manuals.isActive, true));
+    
+    if (filters?.departmentId) {
+      query = query.where(and(
+        eq(manuals.isActive, true),
+        eq(manuals.departmentId, filters.departmentId)
+      )) as typeof query;
+    }
+    
+    const results = await query.orderBy(desc(manuals.createdAt));
+    
+    // Filter by search term in application if needed
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      return results.filter(manual => 
+        manual.title.toLowerCase().includes(searchLower) ||
+        manual.hashtags?.some(tag => tag.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    return results;
+  }
+
+  async getManual(id: string): Promise<Manual | undefined> {
+    const [manual] = await db.select().from(manuals).where(eq(manuals.id, id));
+    return manual || undefined;
+  }
+
+  async createManual(insertManual: InsertManual): Promise<Manual> {
+    const [manual] = await db
+      .insert(manuals)
+      .values(insertManual)
+      .returning();
+    return manual;
+  }
+
+  async updateManual(id: string, updateData: Partial<InsertManual>): Promise<Manual> {
+    const [manual] = await db
+      .update(manuals)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(manuals.id, id))
+      .returning();
+    return manual;
+  }
+
+  async deleteManual(id: string): Promise<void> {
+    // Soft delete
+    await db.update(manuals)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(manuals.id, id));
+  }
+
+  async incrementManualViewCount(id: string): Promise<void> {
+    await db.update(manuals)
+      .set({ viewCount: sql`${manuals.viewCount} + 1` })
+      .where(eq(manuals.id, id));
   }
 }
 

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertEmployeeSchema, insertContentIconSchema, insertContentImageSchema, insertUserProgressSchema } from "@shared/schema";
+import { insertEmployeeSchema, insertContentIconSchema, insertContentImageSchema, insertUserProgressSchema, insertDepartmentSchema, insertManualSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -410,10 +410,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Type', `image/${ext.substring(1)}`);
         res.setHeader('Cache-Control', 'public, max-age=3600');
       }
+      if (ext === '.pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
       res.sendFile(filePath);
     } else {
       console.error(`File not found: ${filePath}`);
       res.status(404).json({ error: "File not found" });
+    }
+  });
+
+  // ===========================================
+  // MANUAL LIBRARY ROUTES
+  // ===========================================
+
+  // Department routes
+  app.get("/api/departments", async (req, res) => {
+    try {
+      const departmentsList = await storage.getAllDepartments();
+      res.json(departmentsList);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      res.status(500).json({ error: "Failed to fetch departments" });
+    }
+  });
+
+  app.post("/api/departments", async (req, res) => {
+    try {
+      const validatedData = insertDepartmentSchema.parse(req.body);
+      const department = await storage.createDepartment(validatedData);
+      res.status(201).json(department);
+    } catch (error) {
+      console.error("Error creating department:", error);
+      res.status(400).json({ error: "Failed to create department" });
+    }
+  });
+
+  app.put("/api/departments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const department = await storage.updateDepartment(id, req.body);
+      res.json(department);
+    } catch (error) {
+      console.error("Error updating department:", error);
+      res.status(400).json({ error: "Failed to update department" });
+    }
+  });
+
+  app.delete("/api/departments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteDepartment(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting department:", error);
+      res.status(400).json({ error: "Failed to delete department" });
+    }
+  });
+
+  // Manual routes
+  app.get("/api/manuals", async (req, res) => {
+    try {
+      const { departmentId, search } = req.query;
+      const manualsList = await storage.getAllManuals({
+        departmentId: departmentId as string,
+        search: search as string,
+      });
+      res.json(manualsList);
+    } catch (error) {
+      console.error("Error fetching manuals:", error);
+      res.status(500).json({ error: "Failed to fetch manuals" });
+    }
+  });
+
+  app.get("/api/manuals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const manual = await storage.getManual(id);
+      if (!manual) {
+        return res.status(404).json({ error: "Manual not found" });
+      }
+      res.json(manual);
+    } catch (error) {
+      console.error("Error fetching manual:", error);
+      res.status(500).json({ error: "Failed to fetch manual" });
+    }
+  });
+
+  // Upload PDF for manual
+  const pdfUpload = multer({
+    dest: uploadDir,
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit for PDFs
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype === 'application/pdf') {
+        cb(null, true);
+      } else {
+        cb(new Error('PDF 파일만 업로드 가능합니다.'));
+      }
+    },
+  });
+
+  app.post("/api/manuals", pdfUpload.single('file'), async (req, res) => {
+    try {
+      const { title, departmentId, hashtags } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "PDF 파일이 필요합니다." });
+      }
+
+      // Parse hashtags from JSON string or comma-separated
+      let hashtagArray: string[] = [];
+      if (hashtags) {
+        try {
+          hashtagArray = JSON.parse(hashtags);
+        } catch {
+          hashtagArray = hashtags.split(',').map((tag: string) => tag.trim()).filter(Boolean);
+        }
+      }
+
+      // Rename file with original extension
+      const ext = path.extname(file.originalname) || '.pdf';
+      const newFilename = file.filename + ext;
+      const newPath = path.join(uploadDir, newFilename);
+      fs.renameSync(file.path, newPath);
+
+      const fileUrl = `/uploads/${newFilename}`;
+
+      const manual = await storage.createManual({
+        title,
+        departmentId,
+        fileUrl,
+        fileName: file.originalname,
+        fileSize: file.size,
+        hashtags: hashtagArray,
+      });
+
+      res.status(201).json(manual);
+    } catch (error) {
+      console.error("Error creating manual:", error);
+      res.status(400).json({ error: "Failed to create manual" });
+    }
+  });
+
+  app.put("/api/manuals/:id", pdfUpload.single('file'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, departmentId, hashtags } = req.body;
+      const file = req.file;
+
+      const updateData: any = {};
+      if (title) updateData.title = title;
+      if (departmentId) updateData.departmentId = departmentId;
+      
+      if (hashtags) {
+        try {
+          updateData.hashtags = JSON.parse(hashtags);
+        } catch {
+          updateData.hashtags = hashtags.split(',').map((tag: string) => tag.trim()).filter(Boolean);
+        }
+      }
+
+      if (file) {
+        const ext = path.extname(file.originalname) || '.pdf';
+        const newFilename = file.filename + ext;
+        const newPath = path.join(uploadDir, newFilename);
+        fs.renameSync(file.path, newPath);
+
+        updateData.fileUrl = `/uploads/${newFilename}`;
+        updateData.fileName = file.originalname;
+        updateData.fileSize = file.size;
+      }
+
+      const manual = await storage.updateManual(id, updateData);
+      res.json(manual);
+    } catch (error) {
+      console.error("Error updating manual:", error);
+      res.status(400).json({ error: "Failed to update manual" });
+    }
+  });
+
+  app.delete("/api/manuals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteManual(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting manual:", error);
+      res.status(400).json({ error: "Failed to delete manual" });
+    }
+  });
+
+  app.post("/api/manuals/:id/view", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.incrementManualViewCount(id);
+      const manual = await storage.getManual(id);
+      res.json({ viewCount: manual?.viewCount || 0 });
+    } catch (error) {
+      console.error("Error incrementing view count:", error);
+      res.status(400).json({ error: "Failed to increment view count" });
     }
   });
 
