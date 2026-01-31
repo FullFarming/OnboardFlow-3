@@ -1,0 +1,1062 @@
+# 🤖 Replit 에이전트를 위한 RAG 챗봇 통합 가이드
+
+## 📋 프로젝트 개요
+
+OnboardFlow-3 프로젝트에 Gemini API 기반 RAG 챗봇을 통합합니다.
+- **위치**: 매뉴얼 라이브러리 페이지 오른쪽 하단
+- **형태**: 플로팅 챗봇 아이콘 + 모달 채팅창
+- **기능**: 업로드된 매뉴얼(PDF/Word)을 학습하여 질의응답
+
+---
+
+## 🎯 구현 단계
+
+### STEP 1: 패키지 설치
+
+```bash
+npm install @google/generative-ai pdf-parse mammoth multer
+npm install --save-dev @types/multer @types/pdf-parse
+```
+
+---
+
+### STEP 2: 서버 파일 생성
+
+#### 📄 `server/services/ragService.ts` 생성
+
+```typescript
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
+import fs from 'fs/promises';
+
+// 벡터 유사도 계산
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+// 텍스트를 청크로 분할
+function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): string[] {
+  const chunks: string[] = [];
+  let start = 0;
+  
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length);
+    chunks.push(text.slice(start, end));
+    start += chunkSize - overlap;
+  }
+  
+  return chunks;
+}
+
+interface DocumentChunk {
+  text: string;
+  embedding: number[];
+  metadata: {
+    filename: string;
+    chunkIndex: number;
+    totalChunks: number;
+  };
+}
+
+export class RAGService {
+  private genAI: GoogleGenerativeAI;
+  private documentChunks: DocumentChunk[] = [];
+  private embeddingModel: any;
+  private chatModel: any;
+  private isInitialized: boolean = false;
+
+  constructor() {
+    // 초기에는 빈 생성자
+  }
+
+  // API 키로 초기화
+  async initialize(apiKey: string): Promise<void> {
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'embedding-001' });
+    this.chatModel = this.genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      }
+    });
+    this.isInitialized = true;
+  }
+
+  // PDF 파일 처리
+  async processPDF(filePath: string): Promise<string> {
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      const pdfData = await pdfParse(dataBuffer);
+      
+      let text = pdfData.text;
+      
+      if (pdfData.numpages > 0) {
+        text += `\n\n[이 문서는 ${pdfData.numpages}페이지로 구성되어 있습니다.]`;
+      }
+      
+      return text;
+    } catch (error) {
+      console.error('PDF 처리 오류:', error);
+      throw new Error('PDF 파일을 처리할 수 없습니다.');
+    }
+  }
+
+  // Word 파일 처리
+  async processWord(filePath: string): Promise<string> {
+    try {
+      const result = await mammoth.extractRawText({ path: filePath });
+      return result.value;
+    } catch (error) {
+      console.error('Word 파일 처리 오류:', error);
+      throw new Error('Word 파일을 처리할 수 없습니다.');
+    }
+  }
+
+  // 문서 인덱싱
+  async indexDocument(filePath: string, filename: string): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('RAG 서비스가 초기화되지 않았습니다.');
+    }
+
+    let text: string;
+    
+    if (filename.toLowerCase().endsWith('.pdf')) {
+      text = await this.processPDF(filePath);
+    } else if (filename.toLowerCase().endsWith('.docx') || filename.toLowerCase().endsWith('.doc')) {
+      text = await this.processWord(filePath);
+    } else {
+      throw new Error('지원하지 않는 파일 형식입니다.');
+    }
+
+    const chunks = chunkText(text);
+    console.log(`${filename}: ${chunks.length}개의 청크로 분할됨`);
+
+    for (let i = 0; i < chunks.length; i++) {
+      try {
+        const result = await this.embeddingModel.embedContent(chunks[i]);
+        const embedding = result.embedding.values;
+
+        this.documentChunks.push({
+          text: chunks[i],
+          embedding: embedding,
+          metadata: {
+            filename,
+            chunkIndex: i,
+            totalChunks: chunks.length
+          }
+        });
+
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error(`청크 ${i} 임베딩 오류:`, error);
+      }
+    }
+
+    console.log(`${filename} 인덱싱 완료: 총 ${this.documentChunks.length}개 청크`);
+  }
+
+  // 질문에 가장 관련있는 청크 찾기
+  async findRelevantChunks(query: string, topK: number = 5): Promise<DocumentChunk[]> {
+    if (!this.isInitialized) {
+      throw new Error('RAG 서비스가 초기화되지 않았습니다.');
+    }
+
+    const result = await this.embeddingModel.embedContent(query);
+    const queryEmbedding = result.embedding.values;
+
+    const similarities = this.documentChunks.map(chunk => ({
+      chunk,
+      similarity: cosineSimilarity(queryEmbedding, chunk.embedding)
+    }));
+
+    return similarities
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, topK)
+      .map(item => item.chunk);
+  }
+
+  // RAG를 사용한 답변 생성
+  async generateAnswer(question: string): Promise<{
+    answer: string;
+    sources: Array<{ filename: string; chunkIndex: number }>;
+  }> {
+    if (!this.isInitialized) {
+      throw new Error('RAG 서비스가 초기화되지 않았습니다.');
+    }
+
+    if (this.documentChunks.length === 0) {
+      return {
+        answer: '아직 인덱싱된 매뉴얼이 없습니다. 먼저 매뉴얼을 업로드해주세요.',
+        sources: []
+      };
+    }
+
+    const relevantChunks = await this.findRelevantChunks(question, 5);
+
+    const context = relevantChunks
+      .map((chunk, idx) => `[문서 ${idx + 1}: ${chunk.metadata.filename}]\n${chunk.text}`)
+      .join('\n\n---\n\n');
+
+    const prompt = `당신은 매뉴얼 문서를 기반으로 질문에 답하는 도우미입니다.
+
+다음은 관련 문서 내용입니다:
+
+${context}
+
+---
+
+위 문서 내용을 바탕으로 다음 질문에 답변해주세요. 문서에 없는 내용은 추측하지 말고, 문서에 있는 정보만 사용하여 답변하세요.
+
+질문: ${question}
+
+답변:`;
+
+    try {
+      const result = await this.chatModel.generateContent(prompt);
+      const answer = result.response.text();
+
+      return {
+        answer,
+        sources: relevantChunks.map(chunk => ({
+          filename: chunk.metadata.filename,
+          chunkIndex: chunk.metadata.chunkIndex
+        }))
+      };
+    } catch (error) {
+      console.error('답변 생성 오류:', error);
+      throw new Error('답변을 생성할 수 없습니다.');
+    }
+  }
+
+  // 인덱싱된 문서 목록 가져오기
+  getIndexedDocuments(): Array<{ filename: string; chunks: number }> {
+    const docMap = new Map<string, number>();
+    
+    this.documentChunks.forEach(chunk => {
+      const filename = chunk.metadata.filename;
+      docMap.set(filename, (docMap.get(filename) || 0) + 1);
+    });
+
+    return Array.from(docMap.entries()).map(([filename, chunks]) => ({
+      filename,
+      chunks
+    }));
+  }
+
+  // 특정 문서 제거
+  removeDocument(filename: string): void {
+    this.documentChunks = this.documentChunks.filter(
+      chunk => chunk.metadata.filename !== filename
+    );
+  }
+
+  // 모든 문서 제거
+  clearAll(): void {
+    this.documentChunks = [];
+  }
+}
+
+// 싱글톤 인스턴스
+export const ragService = new RAGService();
+```
+
+---
+
+#### 📄 `server/routes/rag.ts` 생성
+
+```typescript
+import express, { Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs/promises';
+import { ragService } from '../services/ragService';
+
+const router = express.Router();
+
+// Multer 설정
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'manuals');
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error as Error, uploadDir);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.pdf' || ext === '.docx' || ext === '.doc') {
+      cb(null, true);
+    } else {
+      cb(new Error('PDF 또는 Word 파일만 업로드 가능합니다.'));
+    }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB
+  }
+});
+
+// API 키 설정
+router.post('/api/rag/setup', async (req: Request, res: Response) => {
+  try {
+    const { apiKey } = req.body;
+    
+    if (!apiKey) {
+      return res.status(400).json({ error: 'API 키가 필요합니다.' });
+    }
+
+    await ragService.initialize(apiKey);
+    res.json({ message: 'RAG 시스템이 초기화되었습니다.' });
+  } catch (error) {
+    console.error('RAG 초기화 오류:', error);
+    res.status(500).json({ error: 'RAG 시스템 초기화에 실패했습니다.' });
+  }
+});
+
+// 매뉴얼 라이브러리에서 기존 파일 인덱싱
+router.post('/api/rag/index-existing', async (req: Request, res: Response) => {
+  try {
+    const { filePath, filename } = req.body;
+    
+    if (!filePath || !filename) {
+      return res.status(400).json({ error: '파일 경로와 이름이 필요합니다.' });
+    }
+
+    await ragService.indexDocument(filePath, filename);
+
+    res.json({
+      message: '문서가 성공적으로 인덱싱되었습니다.',
+      filename: filename,
+      documents: ragService.getIndexedDocuments()
+    });
+  } catch (error) {
+    console.error('문서 인덱싱 오류:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : '문서 처리에 실패했습니다.' 
+    });
+  }
+});
+
+// 새 문서 업로드 및 인덱싱
+router.post('/api/rag/upload', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '파일이 업로드되지 않았습니다.' });
+    }
+
+    const filePath = req.file.path;
+    const filename = req.file.originalname;
+
+    await ragService.indexDocument(filePath, filename);
+
+    res.json({
+      message: '문서가 성공적으로 인덱싱되었습니다.',
+      filename: filename,
+      documents: ragService.getIndexedDocuments()
+    });
+  } catch (error) {
+    console.error('문서 업로드 오류:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : '문서 처리에 실패했습니다.' 
+    });
+  }
+});
+
+// 질문하기
+router.post('/api/rag/ask', async (req: Request, res: Response) => {
+  try {
+    const { question } = req.body;
+
+    if (!question) {
+      return res.status(400).json({ error: '질문이 필요합니다.' });
+    }
+
+    const result = await ragService.generateAnswer(question);
+
+    res.json({
+      answer: result.answer,
+      sources: result.sources
+    });
+  } catch (error) {
+    console.error('질문 처리 오류:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : '답변 생성에 실패했습니다.' 
+    });
+  }
+});
+
+// 인덱싱된 문서 목록 조회
+router.get('/api/rag/documents', (req: Request, res: Response) => {
+  try {
+    const documents = ragService.getIndexedDocuments();
+    res.json({ documents });
+  } catch (error) {
+    console.error('문서 목록 조회 오류:', error);
+    res.status(500).json({ error: '문서 목록을 가져올 수 없습니다.' });
+  }
+});
+
+// 특정 문서 제거
+router.delete('/api/rag/documents/:filename', (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+    ragService.removeDocument(decodeURIComponent(filename));
+
+    res.json({ 
+      message: '문서가 제거되었습니다.',
+      documents: ragService.getIndexedDocuments()
+    });
+  } catch (error) {
+    console.error('문서 제거 오류:', error);
+    res.status(500).json({ error: '문서 제거에 실패했습니다.' });
+  }
+});
+
+export default router;
+```
+
+---
+
+### STEP 3: 서버에 라우트 추가
+
+#### 📝 `server/index.ts` 수정 (기존 파일에 추가)
+
+```typescript
+// 기존 imports...
+import ragRoutes from './routes/rag';
+
+// 기존 미들웨어 설정...
+
+// RAG 라우트 추가 (다른 라우트들과 함께)
+app.use(ragRoutes);
+
+// 나머지 코드...
+```
+
+---
+
+### STEP 4: 클라이언트 컴포넌트 생성
+
+#### 📄 `client/src/components/ChatbotModal.tsx` 생성
+
+```typescript
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, MessageCircle, Loader2, FileText } from 'lucide-react';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: Array<{ filename: string; chunkIndex: number }>;
+  timestamp: Date;
+}
+
+interface ChatbotModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  apiKey: string;
+  onApiKeyRequired: () => void;
+}
+
+export default function ChatbotModal({ isOpen, onClose, apiKey, onApiKeyRequired }: ChatbotModalProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [indexedDocs, setIndexedDocs] = useState<Array<{ filename: string; chunks: number }>>([]);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 모달이 열릴 때 포커스
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // 메시지 스크롤
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // 인덱싱된 문서 로드
+  useEffect(() => {
+    if (isOpen && apiKey) {
+      loadIndexedDocuments();
+    }
+  }, [isOpen, apiKey]);
+
+  const loadIndexedDocuments = async () => {
+    try {
+      const response = await fetch('/api/rag/documents');
+      const data = await response.json();
+      if (response.ok) {
+        setIndexedDocs(data.documents || []);
+      }
+    } catch (error) {
+      console.error('문서 목록 로드 실패:', error);
+    }
+  };
+
+  const addMessage = (role: 'user' | 'assistant', content: string, sources?: Array<{ filename: string; chunkIndex: number }>) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      role,
+      content,
+      sources,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    if (!apiKey) {
+      onApiKeyRequired();
+      return;
+    }
+
+    const question = inputMessage.trim();
+    setInputMessage('');
+    addMessage('user', question);
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/rag/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        addMessage('assistant', data.answer, data.sources);
+      } else {
+        addMessage('assistant', `❌ 오류: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('질문 처리 오류:', error);
+      addMessage('assistant', '❌ 답변을 생성하는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl h-[600px] flex flex-col">
+        {/* 헤더 */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="w-6 h-6" />
+            <div>
+              <h2 className="text-lg font-semibold">매뉴얼 챗봇</h2>
+              <p className="text-xs text-indigo-100">
+                {indexedDocs.length > 0 
+                  ? `${indexedDocs.length}개 매뉴얼 학습됨` 
+                  : '매뉴얼을 업로드하고 질문하세요'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* 메시지 영역 */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+          {messages.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  매뉴얼에 대해 질문하세요
+                </h3>
+                <p className="text-sm text-gray-500">
+                  업로드된 매뉴얼 내용을 바탕으로 정확한 답변을 제공합니다
+                </p>
+                {indexedDocs.length > 0 && (
+                  <div className="mt-4 space-y-1">
+                    <p className="text-xs text-gray-400">학습된 매뉴얼:</p>
+                    {indexedDocs.map((doc, idx) => (
+                      <div key={idx} className="text-xs text-gray-600 flex items-center justify-center">
+                        <FileText className="w-3 h-3 mr-1" />
+                        {doc.filename}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    message.role === 'user'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white shadow-sm border border-gray-200'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 mb-1">📚 참조 출처:</p>
+                      <div className="space-y-1">
+                        {message.sources.map((source, idx) => (
+                          <div key={idx} className="text-xs text-gray-600 flex items-start">
+                            <span className="mr-1">•</span>
+                            <span>{source.filename}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white shadow-sm border border-gray-200 rounded-2xl px-4 py-3 flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                <span className="text-sm text-gray-600">답변 생성 중...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* 입력 영역 */}
+        <div className="border-t bg-white p-4 rounded-b-2xl">
+          <div className="flex space-x-2">
+            <textarea
+              ref={inputRef}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={indexedDocs.length > 0 ? "질문을 입력하세요..." : "먼저 매뉴얼을 업로드해주세요"}
+              rows={1}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+              disabled={isLoading || indexedDocs.length === 0}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !inputMessage.trim() || indexedDocs.length === 0}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition flex items-center"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Shift + Enter로 줄바꿈 • Enter로 전송
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+#### 📄 `client/src/components/FloatingChatButton.tsx` 생성
+
+```typescript
+import React from 'react';
+import { MessageCircle } from 'lucide-react';
+
+interface FloatingChatButtonProps {
+  onClick: () => void;
+  hasNewMessage?: boolean;
+}
+
+export default function FloatingChatButton({ onClick, hasNewMessage = false }: FloatingChatButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-6 right-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-300 z-40 group"
+      aria-label="챗봇 열기"
+    >
+      <MessageCircle className="w-6 h-6" />
+      {hasNewMessage && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+      )}
+      
+      {/* 툴팁 */}
+      <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+        매뉴얼 챗봇
+        <div className="absolute top-full right-4 w-2 h-2 bg-gray-800 transform rotate-45 -mt-1" />
+      </div>
+    </button>
+  );
+}
+```
+
+#### 📄 `client/src/components/ApiKeySetupModal.tsx` 생성
+
+```typescript
+import React, { useState } from 'react';
+import { Key, X, ExternalLink } from 'lucide-react';
+
+interface ApiKeySetupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (apiKey: string) => void;
+  currentApiKey?: string;
+}
+
+export default function ApiKeySetupModal({ isOpen, onClose, onSave, currentApiKey = '' }: ApiKeySetupModalProps) {
+  const [apiKey, setApiKey] = useState(currentApiKey);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSave = async () => {
+    if (!apiKey.trim()) {
+      alert('API 키를 입력해주세요.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/rag/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiKey.trim() })
+      });
+
+      if (response.ok) {
+        onSave(apiKey.trim());
+        onClose();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'API 키 설정에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('API 키 설정 오류:', error);
+      alert('API 키 설정에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="bg-indigo-100 p-2 rounded-lg">
+              <Key className="w-5 h-5 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800">Gemini API 설정</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="hover:bg-gray-100 rounded-lg p-2 transition"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              API 키
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+            />
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800 mb-2">
+              🔑 Gemini API 키가 필요합니다
+            </p>
+            <a
+              href="https://makersuite.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
+            >
+              API 키 발급받기
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </a>
+          </div>
+
+          <div className="flex space-x-2">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-medium"
+            >
+              {isLoading ? '저장 중...' : '저장'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### STEP 5: 매뉴얼 라이브러리 페이지에 통합
+
+#### 📝 매뉴얼 라이브러리 컴포넌트 수정
+
+파일 위치: `client/src/pages/ManualLibrary.tsx` (또는 실제 경로에 맞게)
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import FloatingChatButton from '../components/FloatingChatButton';
+import ChatbotModal from '../components/ChatbotModal';
+import ApiKeySetupModal from '../components/ApiKeySetupModal';
+
+export default function ManualLibrary() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  
+  // 기존 매뉴얼 라이브러리 상태들...
+  const [manuals, setManuals] = useState([]);
+
+  // 로컬 스토리지에서 API 키 로드
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+      // 서버에 API 키 설정
+      fetch('/api/rag/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: savedApiKey })
+      });
+    }
+  }, []);
+
+  // 매뉴얼 업로드 시 RAG 시스템에도 인덱싱
+  const handleManualUpload = async (file: File) => {
+    // 기존 업로드 로직...
+    // 파일이 서버에 저장된 후:
+    
+    const uploadedFilePath = `/path/to/uploaded/${file.name}`; // 실제 업로드된 파일 경로
+    
+    // RAG 시스템에 인덱싱
+    if (apiKey) {
+      try {
+        await fetch('/api/rag/index-existing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath: uploadedFilePath,
+            filename: file.name
+          })
+        });
+      } catch (error) {
+        console.error('RAG 인덱싱 오류:', error);
+      }
+    }
+  };
+
+  const handleApiKeySave = (newApiKey: string) => {
+    setApiKey(newApiKey);
+    localStorage.setItem('gemini_api_key', newApiKey);
+  };
+
+  const handleOpenChat = () => {
+    if (!apiKey) {
+      setIsApiKeyModalOpen(true);
+    } else {
+      setIsChatOpen(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* 기존 매뉴얼 라이브러리 UI... */}
+      <div className="container mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">매뉴얼 라이브러리</h1>
+        
+        {/* 매뉴얼 목록... */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {manuals.map((manual, idx) => (
+            <div key={idx} className="bg-white p-4 rounded-lg shadow">
+              {/* 매뉴얼 카드 내용... */}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 플로팅 챗봇 버튼 */}
+      <FloatingChatButton onClick={handleOpenChat} />
+
+      {/* 챗봇 모달 */}
+      <ChatbotModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        apiKey={apiKey}
+        onApiKeyRequired={() => {
+          setIsChatOpen(false);
+          setIsApiKeyModalOpen(true);
+        }}
+      />
+
+      {/* API 키 설정 모달 */}
+      <ApiKeySetupModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onSave={handleApiKeySave}
+        currentApiKey={apiKey}
+      />
+    </div>
+  );
+}
+```
+
+---
+
+### STEP 6: 환경 설정
+
+#### 📄 `.env` 파일에 추가 (선택사항)
+
+```bash
+# Gemini API (선택사항 - UI에서 입력 가능)
+GEMINI_API_KEY=your_api_key_here
+
+# 파일 업로드 설정
+MAX_FILE_SIZE=52428800
+UPLOAD_DIR=./uploads/manuals
+```
+
+---
+
+## 🚀 실행 및 테스트
+
+### 1. 개발 서버 실행
+
+```bash
+npm run dev
+```
+
+### 2. 테스트 순서
+
+1. ✅ 매뉴얼 라이브러리 페이지 접속
+2. ✅ 오른쪽 하단 챗봇 아이콘 확인
+3. ✅ 챗봇 아이콘 클릭
+4. ✅ API 키 설정 모달에서 Gemini API 키 입력
+5. ✅ 매뉴얼 파일(PDF/Word) 업로드
+6. ✅ 챗봇에서 질문하기
+7. ✅ 답변 및 출처 확인
+
+---
+
+## 📊 주요 기능
+
+### ✅ 구현된 기능
+
+1. **자동 매뉴얼 학습**: 라이브러리에 업로드된 매뉴얼 자동 인덱싱
+2. **플로팅 챗봇**: 오른쪽 하단 고정 위치
+3. **모달 인터페이스**: 팝업 형태의 채팅창
+4. **RAG 검색**: 코사인 유사도 기반 의미론적 검색
+5. **출처 표시**: 답변의 근거가 된 매뉴얼 표시
+6. **API 키 관리**: 로컬 스토리지 저장 및 관리
+7. **PDF/Word 지원**: 다양한 형식의 매뉴얼 처리
+
+---
+
+## 💡 커스터마이징 팁
+
+### 챗봇 위치 변경
+
+```typescript
+// FloatingChatButton.tsx
+className="fixed bottom-6 right-6 ..." // 원하는 위치로 변경
+```
+
+### 챗봇 색상 변경
+
+```typescript
+// indigo-600 → 원하는 색상으로 일괄 변경
+// 예: blue-600, purple-600, green-600 등
+```
+
+### 청크 크기 조정 (비용 절감)
+
+```typescript
+// server/services/ragService.ts
+function chunkText(text: string, chunkSize: number = 2000, overlap: number = 300)
+```
+
+---
+
+## 🐛 문제 해결
+
+### "RAG 서비스가 초기화되지 않았습니다"
+→ API 키 설정 확인
+
+### PDF 텍스트가 추출되지 않음
+→ 스캔된 PDF의 경우 OCR 필요 (향후 업데이트)
+
+### "Rate limit exceeded"
+→ Gemini API 무료 할당량 확인 (분당 15 요청)
+
+---
+
+## 📝 체크리스트
+
+- [ ] 패키지 설치 완료
+- [ ] 서버 파일 생성 (`ragService.ts`, `routes/rag.ts`)
+- [ ] 서버 라우트 추가 (`server/index.ts`)
+- [ ] 클라이언트 컴포넌트 생성 (3개 파일)
+- [ ] 매뉴얼 라이브러리 페이지 통합
+- [ ] Gemini API 키 발급
+- [ ] 개발 서버 실행 및 테스트
+
+---
+
+**이 가이드대로 구현하면 완벽하게 작동하는 RAG 챗봇이 매뉴얼 라이브러리에 통합됩니다!** 🎉
