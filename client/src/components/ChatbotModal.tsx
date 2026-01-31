@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageCircle, Loader2, FileText } from 'lucide-react';
+import { X, Send, MessageCircle, Loader2, FileText, RefreshCw } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -7,6 +7,13 @@ interface Message {
   content: string;
   sources?: Array<{ filename: string; chunkIndex: number }>;
   timestamp: Date;
+}
+
+interface Manual {
+  id: string;
+  title: string;
+  fileName: string | null;
+  fileUrl: string;
 }
 
 interface ChatbotModalProps {
@@ -20,6 +27,8 @@ export default function ChatbotModal({ isOpen, onClose }: ChatbotModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [indexedDocs, setIndexedDocs] = useState<Array<{ filename: string; chunks: number }>>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
+  const [indexingProgress, setIndexingProgress] = useState({ current: 0, total: 0 });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -36,35 +45,80 @@ export default function ChatbotModal({ isOpen, onClose }: ChatbotModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      initializeRAG();
-      loadIndexedDocuments();
+      initializeAndIndexManuals();
     }
   }, [isOpen]);
 
-  const initializeRAG = async () => {
+  const initializeAndIndexManuals = async () => {
     try {
-      const response = await fetch('/api/rag/setup', {
+      // Initialize RAG
+      const setupResponse = await fetch('/api/rag/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      if (response.ok) {
+      if (setupResponse.ok) {
         setIsInitialized(true);
       }
+
+      // Check existing indexed documents
+      const docsResponse = await fetch('/api/rag/documents');
+      const docsData = await docsResponse.json();
+      const existingDocs = docsData.documents || [];
+      setIndexedDocs(existingDocs);
+
+      // If no documents are indexed, index all manuals
+      if (existingDocs.length === 0) {
+        await indexAllManuals();
+      }
     } catch (error) {
-      console.error('RAG 초기화 실패:', error);
+      console.error('초기화 실패:', error);
     }
   };
 
-  const loadIndexedDocuments = async () => {
+  const indexAllManuals = async () => {
+    setIsIndexing(true);
     try {
-      const response = await fetch('/api/rag/documents');
-      const data = await response.json();
-      if (response.ok) {
-        setIndexedDocs(data.documents || []);
+      // Fetch all manuals from the database
+      const manualsResponse = await fetch('/api/manuals');
+      const manuals: Manual[] = await manualsResponse.json();
+      
+      if (manuals.length === 0) {
+        addMessage('assistant', '아직 인덱싱된 매뉴얼이 없습니다. 먼저 매뉴얼을 업로드해주세요.');
+        setIsIndexing(false);
+        return;
+      }
+
+      setIndexingProgress({ current: 0, total: manuals.length });
+      
+      // Index each manual
+      for (let i = 0; i < manuals.length; i++) {
+        const manual = manuals[i];
+        setIndexingProgress({ current: i + 1, total: manuals.length });
+        
+        try {
+          await fetch(`/api/rag/index-manual/${manual.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (err) {
+          console.error(`매뉴얼 인덱싱 실패: ${manual.title}`, err);
+        }
+      }
+
+      // Reload indexed documents
+      const docsResponse = await fetch('/api/rag/documents');
+      const docsData = await docsResponse.json();
+      setIndexedDocs(docsData.documents || []);
+      
+      if (docsData.documents && docsData.documents.length > 0) {
+        addMessage('assistant', `${docsData.documents.length}개의 매뉴얼이 학습되었습니다. 이제 질문해주세요!`);
       }
     } catch (error) {
-      console.error('문서 목록 로드 실패:', error);
+      console.error('매뉴얼 인덱싱 실패:', error);
+      addMessage('assistant', '매뉴얼 학습 중 오류가 발생했습니다.');
+    } finally {
+      setIsIndexing(false);
     }
   };
 
@@ -142,7 +196,25 @@ export default function ChatbotModal({ isOpen, onClose }: ChatbotModalProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-          {messages.length === 0 ? (
+          {isIndexing ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <RefreshCw className="w-16 h-16 mx-auto mb-4 text-indigo-500 animate-spin" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  매뉴얼 학습 중...
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  {indexingProgress.current} / {indexingProgress.total} 문서 처리 중
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(indexingProgress.current / indexingProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md">
                 <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -162,6 +234,15 @@ export default function ChatbotModal({ isOpen, onClose }: ChatbotModalProps) {
                       </div>
                     ))}
                   </div>
+                )}
+                {indexedDocs.length === 0 && (
+                  <button
+                    onClick={indexAllManuals}
+                    className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center mx-auto"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    매뉴얼 학습 시작
+                  </button>
                 )}
               </div>
             </div>
