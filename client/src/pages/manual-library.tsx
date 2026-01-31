@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { BookOpen, Search, Menu, Home, LogOut, FileText, Eye, ArrowLeft, Download } from "lucide-react";
 import PDFViewerModal from "@/components/PDFViewerModal";
+import FloatingChatButton from "@/components/FloatingChatButton";
+import ChatbotModal from "@/components/ChatbotModal";
 import { type Employee, type Department, type Manual } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -19,6 +21,7 @@ export default function ManualLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [selectedManual, setSelectedManual] = useState<Manual | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     const employeeData = sessionStorage.getItem("currentEmployee");
@@ -254,6 +257,9 @@ export default function ManualLibrary() {
         hashtags={selectedManual?.hashtags || []}
         onClose={() => setSelectedManual(null)}
       />
+
+      <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+      <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { insertEmployeeSchema, insertContentIconSchema, insertContentImageSchema
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { ragService } from "./services/ragService";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -611,6 +612,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error incrementing view count:", error);
       res.status(400).json({ error: "Failed to increment view count" });
+    }
+  });
+
+  // RAG Chatbot Routes
+  app.post("/api/rag/setup", async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(400).json({ error: 'GEMINI_API_KEY 환경변수가 설정되지 않았습니다.' });
+      }
+      await ragService.initialize(apiKey);
+      res.json({ message: 'RAG 시스템이 초기화되었습니다.', initialized: true });
+    } catch (error) {
+      console.error('RAG 초기화 오류:', error);
+      res.status(500).json({ error: 'RAG 시스템 초기화에 실패했습니다.' });
+    }
+  });
+
+  app.post("/api/rag/index-existing", async (req, res) => {
+    try {
+      const { filePath, filename } = req.body;
+      if (!filePath || !filename) {
+        return res.status(400).json({ error: '파일 경로와 이름이 필요합니다.' });
+      }
+      await ragService.indexDocument(filePath, filename);
+      res.json({
+        message: '문서가 성공적으로 인덱싱되었습니다.',
+        filename: filename,
+        documents: ragService.getIndexedDocuments()
+      });
+    } catch (error) {
+      console.error('문서 인덱싱 오류:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : '문서 처리에 실패했습니다.' 
+      });
+    }
+  });
+
+  app.post("/api/rag/index-manual/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const manual = await storage.getManual(id);
+      if (!manual) {
+        return res.status(404).json({ error: '매뉴얼을 찾을 수 없습니다.' });
+      }
+
+      if (!ragService.getIsInitialized()) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (apiKey) {
+          await ragService.initialize(apiKey);
+        } else {
+          return res.status(400).json({ error: 'RAG 서비스가 초기화되지 않았습니다.' });
+        }
+      }
+
+      const filePath = path.join(process.cwd(), manual.fileUrl.replace(/^\//, ''));
+      await ragService.indexDocument(filePath, manual.fileName || 'document.pdf');
+      
+      res.json({
+        message: '매뉴얼이 성공적으로 인덱싱되었습니다.',
+        filename: manual.fileName,
+        documents: ragService.getIndexedDocuments()
+      });
+    } catch (error) {
+      console.error('매뉴얼 인덱싱 오류:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : '매뉴얼 인덱싱에 실패했습니다.' 
+      });
+    }
+  });
+
+  app.post("/api/rag/ask", async (req, res) => {
+    try {
+      const { question } = req.body;
+      if (!question) {
+        return res.status(400).json({ error: '질문이 필요합니다.' });
+      }
+
+      if (!ragService.getIsInitialized()) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (apiKey) {
+          await ragService.initialize(apiKey);
+        } else {
+          return res.status(400).json({ error: 'RAG 서비스가 초기화되지 않았습니다.' });
+        }
+      }
+
+      const result = await ragService.generateAnswer(question);
+      res.json({
+        answer: result.answer,
+        sources: result.sources
+      });
+    } catch (error) {
+      console.error('질문 처리 오류:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : '답변 생성에 실패했습니다.' 
+      });
+    }
+  });
+
+  app.get("/api/rag/documents", (req, res) => {
+    try {
+      const documents = ragService.getIndexedDocuments();
+      res.json({ documents });
+    } catch (error) {
+      console.error('문서 목록 조회 오류:', error);
+      res.status(500).json({ error: '문서 목록을 가져올 수 없습니다.' });
+    }
+  });
+
+  app.delete("/api/rag/documents/:filename", (req, res) => {
+    try {
+      const { filename } = req.params;
+      ragService.removeDocument(decodeURIComponent(filename));
+      res.json({ 
+        message: '문서가 제거되었습니다.',
+        documents: ragService.getIndexedDocuments()
+      });
+    } catch (error) {
+      console.error('문서 제거 오류:', error);
+      res.status(500).json({ error: '문서 제거에 실패했습니다.' });
     }
   });
 
