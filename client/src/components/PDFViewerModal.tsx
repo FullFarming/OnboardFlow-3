@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -137,15 +137,6 @@ export default function PDFViewerModal({
   const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
   const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
 
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = title || 'document.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.touches[0].clientX);
   };
@@ -205,13 +196,6 @@ export default function PDFViewerModal({
             </div>
           </div>
           
-          <button 
-            onClick={handleDownload}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="다운로드"
-          >
-            <Download className="w-6 h-6" />
-          </button>
         </header>
 
         <div 
@@ -240,12 +224,6 @@ export default function PDFViewerModal({
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                 >
                   새 탭에서 열기
-                </button>
-                <button 
-                  onClick={handleDownload}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  다운로드
                 </button>
               </div>
             </div>
