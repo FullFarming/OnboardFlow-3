@@ -1,10 +1,32 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { PDFParse } from 'pdf-parse';
+import * as mammothLib from 'mammoth';
 import fs from 'fs/promises';
-import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; numPages: number }> {
+  const uint8Array = new Uint8Array(buffer);
+  const parser = new PDFParse(uint8Array);
+  await parser.load();
+  
+  const numPages = parser.doc?._pdfInfo?.numPages || 0;
+  let fullText = '';
+  
+  for (let i = 1; i <= numPages; i++) {
+    try {
+      const page = await parser.doc.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .filter((item: any) => 'str' in item)
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n\n';
+    } catch (err) {
+      console.error(`Page ${i} extraction error:`, err);
+    }
+  }
+  
+  return { text: fullText, numPages };
+}
 
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
   const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
@@ -61,12 +83,12 @@ export class RAGService {
   async processPDF(filePath: string): Promise<string> {
     try {
       const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
+      const pdfData = await extractTextFromPDF(dataBuffer);
       
       let text = pdfData.text;
       
-      if (pdfData.numpages > 0) {
-        text += `\n\n[이 문서는 ${pdfData.numpages}페이지로 구성되어 있습니다.]`;
+      if (pdfData.numPages > 0) {
+        text += `\n\n[이 문서는 ${pdfData.numPages}페이지로 구성되어 있습니다.]`;
       }
       
       return text;
@@ -78,7 +100,7 @@ export class RAGService {
 
   async processWord(filePath: string): Promise<string> {
     try {
-      const result = await mammoth.extractRawText({ path: filePath });
+      const result = await mammothLib.extractRawText({ path: filePath });
       return result.value;
     } catch (error) {
       console.error('Word 파일 처리 오류:', error);
@@ -105,25 +127,39 @@ export class RAGService {
     console.log(`${filename}: ${chunks.length}개의 청크로 분할됨`);
 
     for (let i = 0; i < chunks.length; i++) {
-      try {
-        const result = await this.embeddingModel.embedContent(chunks[i]);
-        const embedding = result.embedding.values;
+      let retries = 3;
+      let success = false;
+      
+      while (retries > 0 && !success) {
+        try {
+          const result = await this.embeddingModel.embedContent(chunks[i]);
+          const embedding = result.embedding.values;
 
-        this.documentChunks.push({
-          text: chunks[i],
-          embedding: embedding,
-          metadata: {
-            filename,
-            chunkIndex: i,
-            totalChunks: chunks.length
+          this.documentChunks.push({
+            text: chunks[i],
+            embedding: embedding,
+            metadata: {
+              filename,
+              chunkIndex: i,
+              totalChunks: chunks.length
+            }
+          });
+          success = true;
+
+          // Rate limit delay between successful requests
+          if (i < chunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
-        });
-
-        if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error: any) {
+          if (error?.status === 429) {
+            console.log(`청크 ${i}: 할당량 초과, ${45}초 대기 후 재시도...`);
+            await new Promise(resolve => setTimeout(resolve, 45000));
+            retries--;
+          } else {
+            console.error(`청크 ${i} 임베딩 오류:`, error);
+            retries = 0;
+          }
         }
-      } catch (error) {
-        console.error(`청크 ${i} 임베딩 오류:`, error);
       }
     }
 
