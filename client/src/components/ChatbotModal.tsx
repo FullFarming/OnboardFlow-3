@@ -97,12 +97,22 @@ export default function ChatbotModal({ isOpen, onClose }: ChatbotModalProps) {
         setIndexingProgress({ current: i + 1, total: manuals.length });
         
         try {
-          await fetch(`/api/rag/index-manual/${manual.id}`, {
+          const indexResponse = await fetch(`/api/rag/index-manual/${manual.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
           });
-        } catch (err) {
+          
+          if (!indexResponse.ok) {
+            const errorData = await indexResponse.json();
+            throw new Error(errorData.error || '인덱싱 실패');
+          }
+        } catch (err: any) {
           console.error(`매뉴얼 인덱싱 실패: ${manual.title}`, err);
+          if (err.message?.includes('할당량')) {
+            addMessage('assistant', 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+            setIsIndexing(false);
+            return;
+          }
         }
       }
 

@@ -127,38 +127,31 @@ export class RAGService {
     console.log(`${filename}: ${chunks.length}개의 청크로 분할됨`);
 
     for (let i = 0; i < chunks.length; i++) {
-      let retries = 3;
-      let success = false;
-      
-      while (retries > 0 && !success) {
-        try {
-          const result = await this.embeddingModel.embedContent(chunks[i]);
-          const embedding = result.embedding.values;
+      try {
+        const result = await this.embeddingModel.embedContent(chunks[i]);
+        const embedding = result.embedding.values;
 
-          this.documentChunks.push({
-            text: chunks[i],
-            embedding: embedding,
-            metadata: {
-              filename,
-              chunkIndex: i,
-              totalChunks: chunks.length
-            }
-          });
-          success = true;
+        this.documentChunks.push({
+          text: chunks[i],
+          embedding: embedding,
+          metadata: {
+            filename,
+            chunkIndex: i,
+            totalChunks: chunks.length
+          }
+        });
 
-          // Rate limit delay between successful requests
-          if (i < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } catch (error: any) {
-          if (error?.status === 429) {
-            console.log(`청크 ${i}: 할당량 초과, ${45}초 대기 후 재시도...`);
-            await new Promise(resolve => setTimeout(resolve, 45000));
-            retries--;
-          } else {
-            console.error(`청크 ${i} 임베딩 오류:`, error);
-            retries = 0;
-          }
+        // Rate limit delay between successful requests
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error: any) {
+        if (error?.status === 429) {
+          console.log(`청크 ${i}: API 할당량 초과`);
+          throw new Error('API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+        } else {
+          console.error(`청크 ${i} 임베딩 오류:`, error);
+          throw error;
         }
       }
     }
