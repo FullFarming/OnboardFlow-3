@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Inbox, Laptop, Users, Key, GraduationCap, LogOut, ChevronRight, CheckCircle2, Trophy, Sparkles, Menu, BookOpen, Home, X } from "lucide-react";
 import { type Employee, type ContentIcon } from "@shared/schema";
 import ContentViewer from "@/components/content-viewer";
+import PDFViewerModal from "@/components/PDFViewerModal";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -18,6 +19,7 @@ export default function UserDashboard() {
   const [, setLocation] = useLocation();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [selectedContent, setSelectedContent] = useState<ContentIcon | null>(null);
+  const [pdfContent, setPdfContent] = useState<ContentIcon | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [wasAllComplete, setWasAllComplete] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -151,23 +153,18 @@ export default function UserDashboard() {
     const isCompleted = isContentCompleted(content.id);
 
     // Normal content viewing
+    if (currentEmployee && !isCompleted) {
+      markCompleteMutation.mutate({
+        contentId: content.id,
+        employeeId: currentEmployee.id,
+      });
+    }
+
     if (content.contentType === "Link") {
-      // Only mark as complete if not already completed
-      if (currentEmployee && !isCompleted) {
-        markCompleteMutation.mutate({
-          contentId: content.id,
-          employeeId: currentEmployee.id,
-        });
-      }
       window.open(content.contentSource, "_blank");
+    } else if (content.contentType === "PDF") {
+      setPdfContent(content);
     } else {
-      // For other content types, mark as complete only if not already completed
-      if (currentEmployee && !isCompleted) {
-        markCompleteMutation.mutate({
-          contentId: content.id,
-          employeeId: currentEmployee.id,
-        });
-      }
       setSelectedContent(content);
     }
   };
@@ -453,11 +450,18 @@ export default function UserDashboard() {
           employeeId={currentEmployee.id}
           onClose={() => setSelectedContent(null)}
           onComplete={() => {
-            // Refresh progress data
             refetchProgress();
           }}
         />
       )}
+
+      {/* PDF Viewer - opens directly for PDF content */}
+      <PDFViewerModal
+        isOpen={!!pdfContent}
+        fileUrl={pdfContent?.contentSource || ""}
+        title={pdfContent?.iconTitle || ""}
+        onClose={() => setPdfContent(null)}
+      />
 
       {/* Celebration Modal for 100% Completion */}
       <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
