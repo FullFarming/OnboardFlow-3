@@ -615,6 +615,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual Links Routes
+  app.get("/api/manual-links", async (req, res) => {
+    try {
+      const links = await storage.getAllManualLinks();
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch manual links" });
+    }
+  });
+
+  app.get("/api/manual-links/:manualId", async (req, res) => {
+    try {
+      const { manualId } = req.params;
+      const links = await storage.getManualLinks(manualId);
+      const linkedManuals = await Promise.all(
+        links.map(async (link) => {
+          const manual = await storage.getManual(link.linkedManualId);
+          return manual ? { ...link, linkedManual: manual } : null;
+        })
+      );
+      res.json(linkedManuals.filter(Boolean));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch manual links" });
+    }
+  });
+
+  app.post("/api/manual-links", async (req, res) => {
+    try {
+      const { sourceManualId, linkedManualId } = req.body;
+      if (!sourceManualId || !linkedManualId) {
+        return res.status(400).json({ error: "sourceManualId and linkedManualId are required" });
+      }
+      if (sourceManualId === linkedManualId) {
+        return res.status(400).json({ error: "Cannot link a manual to itself" });
+      }
+      const link = await storage.createManualLink({ sourceManualId, linkedManualId });
+      res.json(link);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create manual link" });
+    }
+  });
+
+  app.delete("/api/manual-links/:id", async (req, res) => {
+    try {
+      await storage.deleteManualLink(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete manual link" });
+    }
+  });
+
   // RAG Chatbot Routes
   app.post("/api/rag/setup", async (req, res) => {
     try {
