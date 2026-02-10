@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
+import PDFViewerModal from "@/components/PDFViewerModal";
 
 interface ContentViewerProps {
   content: ContentIcon;
@@ -21,6 +22,7 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -278,16 +280,16 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
 
       case "PDF":
         return (
-          <div className="text-center py-12">
-            <FileText className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">PDF 문서를 새 창에서 열어보세요</p>
+          <div className="text-center py-8">
+            <FileText className="h-14 w-14 text-green-500 mx-auto mb-3" />
+            <p className="text-gray-600 mb-4 text-sm">PDF 문서를 확인하세요</p>
             <Button
-              onClick={() => window.open(content.contentSource, "_blank")}
+              onClick={() => setShowPdfViewer(true)}
               className="bg-brand-navy text-white hover:bg-blue-800"
               data-testid="button-open-pdf"
             >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              PDF 열기
+              <FileText className="mr-2 h-4 w-4" />
+              PDF 보기
             </Button>
           </div>
         );
@@ -349,6 +351,15 @@ export default function ContentViewer({ content, employeeId, onClose, onComplete
           </div>
         </DialogContent>
       </Dialog>
+
+      {content.contentType === "PDF" && (
+        <PDFViewerModal
+          isOpen={showPdfViewer}
+          fileUrl={content.contentSource}
+          title={content.iconTitle}
+          onClose={() => setShowPdfViewer(false)}
+        />
+      )}
 
       {/* Completion Confirmation Dialog */}
       <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>

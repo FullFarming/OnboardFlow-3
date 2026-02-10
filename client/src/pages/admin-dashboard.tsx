@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   const [linkingManual, setLinkingManual] = useState<Manual | null>(null);
   const [newHashtag, setNewHashtag] = useState("");
   const [manualHashtags, setManualHashtags] = useState<string[]>([]);
+  const [editContentType, setEditContentType] = useState("");
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
@@ -802,7 +803,7 @@ export default function AdminDashboard() {
 
       {/* Edit Content Modal */}
       {editingContent && (
-        <Dialog open={true} onOpenChange={() => setEditingContent(null)}>
+        <Dialog open={true} onOpenChange={() => { setEditingContent(null); setEditContentType(""); }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>콘텐츠 수정</DialogTitle>
@@ -821,7 +822,12 @@ export default function AdminDashboard() {
                   <Label className="form-label">아이콘 제목</Label>
                 </div>
                 <div className="relative">
-                  <Select name="contentType" required defaultValue={editingContent.contentType}>
+                  <Select 
+                    name="contentType" 
+                    required 
+                    defaultValue={editingContent.contentType}
+                    onValueChange={(val) => setEditContentType(val)}
+                  >
                     <SelectTrigger className="form-input pt-3" data-testid="select-edit-content-type">
                       <SelectValue placeholder="선택하세요" />
                     </SelectTrigger>
@@ -837,16 +843,43 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="relative">
-                <Input
-                  name="contentSource"
-                  defaultValue={editingContent.contentSource}
-                  className="form-input peer"
-                  placeholder=""
-                  data-testid="input-edit-content-source"
-                />
-                <Label className="form-label">콘텐츠 소스 (URL)</Label>
-              </div>
+              {(editContentType || editingContent.contentType) === "PDF" ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">PDF 파일 업로드</Label>
+                    <Input
+                      name="contentFile"
+                      type="file"
+                      accept="application/pdf"
+                      className="cursor-pointer"
+                    />
+                    {editingContent.contentSource && editingContent.contentSource.startsWith('/uploads') && (
+                      <p className="text-xs text-gray-500 mt-1">현재 파일: {editingContent.contentSource.split('/').pop()}</p>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      name="contentSource"
+                      defaultValue={editingContent.contentSource}
+                      className="form-input peer"
+                      placeholder=""
+                      data-testid="input-edit-content-source"
+                    />
+                    <Label className="form-label">또는 PDF URL 입력</Label>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    name="contentSource"
+                    defaultValue={editingContent.contentSource}
+                    className="form-input peer"
+                    placeholder=""
+                    data-testid="input-edit-content-source"
+                  />
+                  <Label className="form-label">콘텐츠 소스 (URL)</Label>
+                </div>
+              )}
 
               <div className="relative w-32">
                 <Input
@@ -866,7 +899,7 @@ export default function AdminDashboard() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setEditingContent(null)}
+                  onClick={() => { setEditingContent(null); setEditContentType(""); }}
                   data-testid="button-cancel-edit"
                 >
                   취소
