@@ -198,7 +198,11 @@ export default function ManualLibrary() {
                         className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                         style={{ backgroundColor: dept?.color || "#3B82F6" }}
                       >
-                        <FileText className="h-6 w-6 text-white" />
+                        {manual.icon ? (
+                          <span className="text-2xl">{manual.icon}</span>
+                        ) : (
+                          <FileText className="h-6 w-6 text-white" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-gray-900 truncate">{manual.title}</h3>

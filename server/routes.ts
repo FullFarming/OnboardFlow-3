@@ -514,14 +514,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/manuals", pdfUpload.single('file'), async (req, res) => {
     try {
-      const { title, departmentId, hashtags } = req.body;
+      const { title, departmentId, hashtags, icon } = req.body;
       const file = req.file;
 
       if (!file) {
         return res.status(400).json({ error: "PDF 파일이 필요합니다." });
       }
 
-      // Parse hashtags from JSON string or comma-separated
       let hashtagArray: string[] = [];
       if (hashtags) {
         try {
@@ -531,7 +530,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Rename file with original extension
       const ext = path.extname(file.originalname) || '.pdf';
       const newFilename = file.filename + ext;
       const newPath = path.join(uploadDir, newFilename);
@@ -545,6 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileUrl,
         fileName: file.originalname,
         fileSize: file.size,
+        icon: icon || null,
         hashtags: hashtagArray,
       });
 
@@ -558,12 +557,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/manuals/:id", pdfUpload.single('file'), async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, departmentId, hashtags } = req.body;
+      const { title, departmentId, hashtags, icon } = req.body;
       const file = req.file;
 
       const updateData: any = {};
       if (title) updateData.title = title;
       if (departmentId) updateData.departmentId = departmentId;
+      if (icon !== undefined) updateData.icon = icon || null;
       
       if (hashtags) {
         try {

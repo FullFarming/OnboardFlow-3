@@ -26,6 +26,9 @@ export default function AdminDashboard() {
   const [linkingManual, setLinkingManual] = useState<Manual | null>(null);
   const [newHashtag, setNewHashtag] = useState("");
   const [manualHashtags, setManualHashtags] = useState<string[]>([]);
+  const [manualIcon, setManualIcon] = useState<string>("");
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [editManualIcon, setEditManualIcon] = useState<string>("");
   const [editContentType, setEditContentType] = useState("");
 
   // Fetch employees
@@ -277,9 +280,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("hashtags", JSON.stringify(manualHashtags));
+    if (manualIcon) formData.set("icon", manualIcon);
     addManualMutation.mutate(formData);
     e.currentTarget.reset();
     setManualHashtags([]);
+    setManualIcon("");
   };
 
   const handleManualEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -287,6 +292,7 @@ export default function AdminDashboard() {
     if (!editingManual) return;
     const formData = new FormData(e.currentTarget);
     formData.set("hashtags", JSON.stringify(manualHashtags));
+    formData.set("icon", editManualIcon || "");
     updateManualMutation.mutate({ id: editingManual.id, data: formData });
   };
 
@@ -598,6 +604,41 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">아이콘 선택</Label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowIconPicker(!showIconPicker)}
+                        className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white"
+                      >
+                        {manualIcon || <FileText className="h-5 w-5 text-gray-400" />}
+                      </button>
+                      <span className="text-sm text-gray-500">
+                        {manualIcon ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
+                      </span>
+                      {manualIcon && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setManualIcon("")} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {showIconPicker && (
+                      <div className="grid grid-cols-10 gap-1 p-3 bg-gray-50 rounded-lg border max-h-48 overflow-y-auto">
+                        {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => { setManualIcon(emoji); setShowIconPicker(false); }}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                       <Input
@@ -730,8 +771,9 @@ export default function AdminDashboard() {
                               href={manual.fileUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-600 hover:underline flex items-center gap-2"
                             >
+                              {manual.icon && <span className="text-lg">{manual.icon}</span>}
                               {manual.title}
                             </a>
                           </TableCell>
@@ -777,6 +819,8 @@ export default function AdminDashboard() {
                               onClick={() => {
                                 setEditingManual(manual);
                                 setManualHashtags(manual.hashtags || []);
+                                setEditManualIcon(manual.icon || "");
+                                setShowIconPicker(false);
                               }}
                             >
                               <Edit className="h-4 w-4" />
@@ -1030,6 +1074,41 @@ export default function AdminDashboard() {
               <DialogTitle>매뉴얼 수정</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleManualEditSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">아이콘 선택</Label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowIconPicker(!showIconPicker)}
+                    className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white"
+                  >
+                    {editManualIcon || <FileText className="h-5 w-5 text-gray-400" />}
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    {editManualIcon ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
+                  </span>
+                  {editManualIcon && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setEditManualIcon("")} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {showIconPicker && (
+                  <div className="grid grid-cols-10 gap-1 p-3 bg-gray-50 rounded-lg border max-h-48 overflow-y-auto">
+                    {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => { setEditManualIcon(emoji); setShowIconPicker(false); }}
+                        className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <Input

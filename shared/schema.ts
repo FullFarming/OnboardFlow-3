@@ -125,6 +125,7 @@ export const manuals = pgTable("manuals", {
   fileUrl: text("file_url").notNull(),
   fileName: text("file_name"),
   fileSize: integer("file_size"),
+  icon: text("icon"),
   hashtags: text("hashtags").array().default([]),
   viewCount: integer("view_count").default(0),
   isActive: boolean("is_active").default(true),
@@ -151,6 +152,7 @@ export const insertManualSchema = createInsertSchema(manuals).pick({
   fileUrl: true,
   fileName: true,
   fileSize: true,
+  icon: true,
   hashtags: true,
 });
 
