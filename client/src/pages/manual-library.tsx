@@ -62,12 +62,6 @@ export default function ManualLibrary() {
     return departments.find(d => d.id === id);
   };
 
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return "";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
 
   if (!currentEmployee) {
     return (
@@ -149,7 +143,7 @@ export default function ManualLibrary() {
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="제목 또는 해시태그로 검색..."
+            placeholder="제목, 파일명 또는 해시태그로 검색..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-white"
@@ -215,7 +209,6 @@ export default function ManualLibrary() {
                           >
                             {dept?.name || "Unknown"}
                           </span>
-                          <span className="text-xs text-gray-400">{formatFileSize(manual.fileSize)}</span>
                         </div>
                         {manual.hashtags && manual.hashtags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">

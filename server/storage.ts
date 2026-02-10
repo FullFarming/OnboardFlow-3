@@ -360,13 +360,18 @@ export class DatabaseStorage implements IStorage {
     
     const results = await query.orderBy(desc(manuals.createdAt));
     
-    // Filter by search term in application if needed
     if (filters?.search) {
-      const searchLower = filters.search.toLowerCase();
-      return results.filter(manual => 
-        manual.title.toLowerCase().includes(searchLower) ||
-        manual.hashtags?.some(tag => tag.toLowerCase().includes(searchLower))
-      );
+      const searchWords = filters.search.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      return results.filter(manual => {
+        const titleLower = manual.title.toLowerCase();
+        const fileNameLower = (manual.fileName || "").toLowerCase();
+        const hashtagsLower = (manual.hashtags || []).map(t => t.toLowerCase());
+        return searchWords.some(word =>
+          titleLower.includes(word) ||
+          fileNameLower.includes(word) ||
+          hashtagsLower.some(tag => tag.includes(word))
+        );
+      });
     }
     
     return results;
