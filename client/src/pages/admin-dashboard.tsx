@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload, BookOpen, FileText, Hash, Eye } from "lucide-react";
-import { type Employee, type ContentIcon, type Department, type Manual } from "@shared/schema";
+import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload, BookOpen, FileText, Hash, Eye, Link2, X } from "lucide-react";
+import { type Employee, type ContentIcon, type Department, type Manual, type ManualLink } from "@shared/schema";
 import UploadForm from "@/components/upload-form";
 import dashboardBg from "@assets/image_1756257576204.png";
 
@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [editingContent, setEditingContent] = useState<ContentIcon | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editingManual, setEditingManual] = useState<Manual | null>(null);
+  const [linkingManual, setLinkingManual] = useState<Manual | null>(null);
   const [newHashtag, setNewHashtag] = useState("");
   const [manualHashtags, setManualHashtags] = useState<string[]>([]);
 
@@ -44,6 +45,43 @@ export default function AdminDashboard() {
   // Fetch manuals
   const { data: manualsList = [], isLoading: manualsLoading } = useQuery<Manual[]>({
     queryKey: ["/api/manuals"],
+  });
+
+  // Fetch manual links for linking modal
+  const { data: currentManualLinks = [] } = useQuery<Array<ManualLink & { linkedManual: Manual }>>({
+    queryKey: ["/api/manual-links", linkingManual?.id],
+    enabled: !!linkingManual,
+    queryFn: async () => {
+      const res = await fetch(`/api/manual-links/${linkingManual!.id}`);
+      return res.json();
+    }
+  });
+
+  const addManualLinkMutation = useMutation({
+    mutationFn: async ({ sourceManualId, linkedManualId }: { sourceManualId: string; linkedManualId: string }) => {
+      const response = await apiRequest("POST", "/api/manual-links", { sourceManualId, linkedManualId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manual-links", linkingManual?.id] });
+      toast({ title: "매뉴얼이 연계되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "매뉴얼 연계 실패", variant: "destructive" });
+    },
+  });
+
+  const deleteManualLinkMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/manual-links/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manual-links", linkingManual?.id] });
+      toast({ title: "연계가 해제되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "연계 해제 실패", variant: "destructive" });
+    },
   });
 
   // Employee mutations
@@ -725,6 +763,15 @@ export default function AdminDashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="text-purple-600 hover:text-purple-800"
+                              onClick={() => setLinkingManual(manual)}
+                              title="매뉴얼 연계"
+                            >
+                              <Link2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="text-brand-blue hover:text-blue-800"
                               onClick={() => {
                                 setEditingManual(manual);
@@ -1056,6 +1103,95 @@ export default function AdminDashboard() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Manual Linking Dialog */}
+      {linkingManual && (
+        <Dialog open={true} onOpenChange={() => setLinkingManual(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-purple-600" />
+                매뉴얼 연계 관리
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-800">
+                  기준 매뉴얼: {linkingManual.title}
+                </p>
+              </div>
+
+              {/* Current Links */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">현재 연계된 매뉴얼</h4>
+                {currentManualLinks.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-2">연계된 매뉴얼이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {currentManualLinks.map((link) => (
+                      <div key={link.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <span className="text-sm">{link.linkedManual?.title || '삭제된 매뉴얼'}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 h-7 w-7 p-0"
+                          onClick={() => deleteManualLinkMutation.mutate(link.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Link */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">매뉴얼 연계 추가</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {manualsList
+                    .filter(m => m.id !== linkingManual.id && !currentManualLinks.some(l => l.linkedManualId === m.id))
+                    .map((manual) => (
+                      <div key={manual.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg border">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{manual.title}</p>
+                          <span 
+                            className="text-xs px-1.5 py-0.5 rounded text-white"
+                            style={{ backgroundColor: getDepartmentColor(manual.departmentId) }}
+                          >
+                            {getDepartmentName(manual.departmentId)}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                          onClick={() => addManualLinkMutation.mutate({
+                            sourceManualId: linkingManual.id,
+                            linkedManualId: manual.id
+                          })}
+                          disabled={addManualLinkMutation.isPending}
+                        >
+                          <Link2 className="h-3 w-3 mr-1" />
+                          연계
+                        </Button>
+                      </div>
+                    ))}
+                  {manualsList.filter(m => m.id !== linkingManual.id && !currentManualLinks.some(l => l.linkedManualId === m.id)).length === 0 && (
+                    <p className="text-sm text-gray-500 py-2">연계 가능한 매뉴얼이 없습니다.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setLinkingManual(null)}>
+                  닫기
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}

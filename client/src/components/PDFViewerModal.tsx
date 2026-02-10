@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Link2 } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -7,22 +7,39 @@ declare global {
   }
 }
 
+interface LinkedManualInfo {
+  id: string;
+  linkedManualId: string;
+  linkedManual: {
+    id: string;
+    title: string;
+    fileUrl: string;
+    departmentId: string;
+    fileName: string | null;
+    hashtags: string[] | null;
+  };
+}
+
 interface PDFViewerModalProps {
   isOpen: boolean;
   fileUrl: string;
   title: string;
+  manualId?: string;
   department?: { name: string; color: string | null } | null;
   hashtags?: string[];
   onClose: () => void;
+  onOpenLinkedManual?: (manual: { id: string; title: string; fileUrl: string }) => void;
 }
 
 export default function PDFViewerModal({ 
   isOpen,
   fileUrl, 
   title, 
+  manualId,
   department,
   hashtags = [],
-  onClose 
+  onClose,
+  onOpenLinkedManual
 }: PDFViewerModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +51,8 @@ export default function PDFViewerModal({
   const [error, setError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [linkedManuals, setLinkedManuals] = useState<LinkedManualInfo[]>([]);
+  const [showLinkedPanel, setShowLinkedPanel] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,6 +64,18 @@ export default function PDFViewerModal({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && manualId) {
+      fetch(`/api/manual-links/${manualId}`)
+        .then(res => res.json())
+        .then(data => setLinkedManuals(Array.isArray(data) ? data : []))
+        .catch(() => setLinkedManuals([]));
+    } else {
+      setLinkedManuals([]);
+      setShowLinkedPanel(false);
+    }
+  }, [isOpen, manualId]);
 
   useEffect(() => {
     if (!isOpen || !fileUrl) return;
@@ -196,7 +227,45 @@ export default function PDFViewerModal({
             </div>
           </div>
           
+          {linkedManuals.length > 0 && (
+            <button
+              onClick={() => setShowLinkedPanel(!showLinkedPanel)}
+              className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="연계 매뉴얼"
+            >
+              <Link2 className="w-5 h-5 text-purple-600" />
+              <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                {linkedManuals.length}
+              </span>
+            </button>
+          )}
         </header>
+
+        {showLinkedPanel && linkedManuals.length > 0 && (
+          <div className="bg-purple-50 border-b border-purple-200 px-4 py-3">
+            <p className="text-xs font-medium text-purple-700 mb-2">연계 매뉴얼</p>
+            <div className="flex flex-wrap gap-2">
+              {linkedManuals.map((link) => (
+                <button
+                  key={link.id}
+                  onClick={() => {
+                    if (onOpenLinkedManual) {
+                      onOpenLinkedManual({
+                        id: link.linkedManual.id,
+                        title: link.linkedManual.title,
+                        fileUrl: link.linkedManual.fileUrl
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-300 rounded-full text-sm text-purple-700 hover:bg-purple-100 transition-colors shadow-sm"
+                >
+                  <Link2 className="w-3 h-3" />
+                  {link.linkedManual.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div 
           ref={containerRef}

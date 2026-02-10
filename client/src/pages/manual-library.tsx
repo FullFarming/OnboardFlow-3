@@ -253,9 +253,26 @@ export default function ManualLibrary() {
         isOpen={!!selectedManual}
         fileUrl={selectedManual?.fileUrl || ""}
         title={selectedManual?.title || ""}
+        manualId={selectedManual?.id}
         department={selectedManual ? getDepartmentById(selectedManual.departmentId) : null}
         hashtags={selectedManual?.hashtags || []}
         onClose={() => setSelectedManual(null)}
+        onOpenLinkedManual={async (linkedManual) => {
+          const found = manuals.find((m: any) => m.id === linkedManual.id);
+          if (found) {
+            setSelectedManual(found);
+          } else {
+            try {
+              const res = await fetch(`/api/manuals/${linkedManual.id}`);
+              if (res.ok) {
+                const manualData = await res.json();
+                setSelectedManual(manualData);
+              }
+            } catch (err) {
+              console.error('연계 매뉴얼 불러오기 실패:', err);
+            }
+          }
+        }}
       />
 
       {/* <FloatingChatButton onClick={() => setIsChatOpen(true)} />
