@@ -132,6 +132,13 @@ export const manuals = pgTable("manuals", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const manualLinks = pgTable("manual_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceManualId: varchar("source_manual_id").notNull(),
+  linkedManualId: varchar("linked_manual_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertDepartmentSchema = createInsertSchema(departments).pick({
   name: true,
   description: true,
@@ -149,5 +156,12 @@ export const insertManualSchema = createInsertSchema(manuals).pick({
 
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type Department = typeof departments.$inferSelect;
+export const insertManualLinkSchema = createInsertSchema(manualLinks).pick({
+  sourceManualId: true,
+  linkedManualId: true,
+});
+
 export type InsertManual = z.infer<typeof insertManualSchema>;
 export type Manual = typeof manuals.$inferSelect;
+export type InsertManualLink = z.infer<typeof insertManualLinkSchema>;
+export type ManualLink = typeof manualLinks.$inferSelect;
