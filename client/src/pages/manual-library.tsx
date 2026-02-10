@@ -195,10 +195,12 @@ export default function ManualLibrary() {
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
                         style={{ backgroundColor: dept?.color || "#3B82F6" }}
                       >
-                        {manual.icon ? (
+                        {manual.icon?.startsWith("/uploads") ? (
+                          <img src={manual.icon} alt="" className="w-full h-full object-cover" />
+                        ) : manual.icon ? (
                           <span className="text-2xl">{manual.icon}</span>
                         ) : (
                           <FileText className="h-6 w-6 text-white" />

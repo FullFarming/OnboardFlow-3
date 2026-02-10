@@ -499,23 +499,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload PDF for manual
-  const pdfUpload = multer({
+  const manualUpload = multer({
     dest: uploadDir,
-    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit for PDFs
+    limits: { fileSize: 20 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-      if (file.mimetype === 'application/pdf') {
-        cb(null, true);
+      if (file.fieldname === 'file') {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(new Error('PDF 파일만 업로드 가능합니다.'));
+        }
+      } else if (file.fieldname === 'iconFile') {
+        const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
+        if (allowedTypes.test(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('이미지 파일만 업로드 가능합니다.'));
+        }
       } else {
-        cb(new Error('PDF 파일만 업로드 가능합니다.'));
+        cb(null, true);
       }
     },
   });
 
-  app.post("/api/manuals", pdfUpload.single('file'), async (req, res) => {
+  app.post("/api/manuals", manualUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'iconFile', maxCount: 1 }]), async (req, res) => {
     try {
       const { title, departmentId, hashtags, icon } = req.body;
-      const file = req.file;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const file = files?.file?.[0];
+      const iconFile = files?.iconFile?.[0];
 
       if (!file) {
         return res.status(400).json({ error: "PDF 파일이 필요합니다." });
@@ -534,8 +546,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newFilename = file.filename + ext;
       const newPath = path.join(uploadDir, newFilename);
       fs.renameSync(file.path, newPath);
-
       const fileUrl = `/uploads/${newFilename}`;
+
+      let iconValue = icon || null;
+      if (iconFile) {
+        const iconExt = path.extname(iconFile.originalname) || '.png';
+        const iconFilename = iconFile.filename + iconExt;
+        const iconPath = path.join(uploadDir, iconFilename);
+        fs.renameSync(iconFile.path, iconPath);
+        iconValue = `/uploads/${iconFilename}`;
+      }
 
       const manual = await storage.createManual({
         title,
@@ -543,7 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileUrl,
         fileName: file.originalname,
         fileSize: file.size,
-        icon: icon || null,
+        icon: iconValue,
         hashtags: hashtagArray,
       });
 
@@ -554,17 +574,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/manuals/:id", pdfUpload.single('file'), async (req, res) => {
+  app.put("/api/manuals/:id", manualUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'iconFile', maxCount: 1 }]), async (req, res) => {
     try {
       const { id } = req.params;
       const { title, departmentId, hashtags, icon } = req.body;
-      const file = req.file;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const file = files?.file?.[0];
+      const iconFile = files?.iconFile?.[0];
 
       const updateData: any = {};
       if (title) updateData.title = title;
       if (departmentId) updateData.departmentId = departmentId;
       if (icon !== undefined) updateData.icon = icon || null;
       
+      if (iconFile) {
+        const iconExt = path.extname(iconFile.originalname) || '.png';
+        const iconFilename = iconFile.filename + iconExt;
+        const iconPath = path.join(uploadDir, iconFilename);
+        fs.renameSync(iconFile.path, iconPath);
+        updateData.icon = `/uploads/${iconFilename}`;
+      }
+
       if (hashtags) {
         try {
           updateData.hashtags = JSON.parse(hashtags);

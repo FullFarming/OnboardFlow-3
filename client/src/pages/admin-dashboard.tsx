@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload, BookOpen, FileText, Hash, Eye, Link2, X } from "lucide-react";
+import { Shield, Users, Grid3X3, LogOut, Edit, Trash2, Plus, Upload, BookOpen, FileText, Hash, Eye, Link2, X, ImagePlus } from "lucide-react";
 import { type Employee, type ContentIcon, type Department, type Manual, type ManualLink } from "@shared/schema";
 import UploadForm from "@/components/upload-form";
 import dashboardBg from "@assets/image_1756257576204.png";
@@ -27,8 +27,13 @@ export default function AdminDashboard() {
   const [newHashtag, setNewHashtag] = useState("");
   const [manualHashtags, setManualHashtags] = useState<string[]>([]);
   const [manualIcon, setManualIcon] = useState<string>("");
+  const [manualIconFile, setManualIconFile] = useState<File | null>(null);
+  const [manualIconPreview, setManualIconPreview] = useState<string>("");
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconPickerTab, setIconPickerTab] = useState<"emoji" | "image">("emoji");
   const [editManualIcon, setEditManualIcon] = useState<string>("");
+  const [editManualIconFile, setEditManualIconFile] = useState<File | null>(null);
+  const [editManualIconPreview, setEditManualIconPreview] = useState<string>("");
   const [editContentType, setEditContentType] = useState("");
 
   // Fetch employees
@@ -281,10 +286,13 @@ export default function AdminDashboard() {
     const formData = new FormData(e.currentTarget);
     formData.set("hashtags", JSON.stringify(manualHashtags));
     if (manualIcon) formData.set("icon", manualIcon);
+    if (manualIconFile) formData.set("iconFile", manualIconFile);
     addManualMutation.mutate(formData);
     e.currentTarget.reset();
     setManualHashtags([]);
     setManualIcon("");
+    setManualIconFile(null);
+    setManualIconPreview("");
   };
 
   const handleManualEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -293,6 +301,7 @@ export default function AdminDashboard() {
     const formData = new FormData(e.currentTarget);
     formData.set("hashtags", JSON.stringify(manualHashtags));
     formData.set("icon", editManualIcon || "");
+    if (editManualIconFile) formData.set("iconFile", editManualIconFile);
     updateManualMutation.mutate({ id: editingManual.id, data: formData });
   };
 
@@ -610,31 +619,72 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={() => setShowIconPicker(!showIconPicker)}
-                        className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white"
+                        className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white overflow-hidden"
                       >
-                        {manualIcon || <FileText className="h-5 w-5 text-gray-400" />}
+                        {manualIconPreview ? (
+                          <img src={manualIconPreview} alt="icon" className="w-full h-full object-cover rounded-md" />
+                        ) : manualIcon ? (
+                          manualIcon
+                        ) : (
+                          <FileText className="h-5 w-5 text-gray-400" />
+                        )}
                       </button>
                       <span className="text-sm text-gray-500">
-                        {manualIcon ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
+                        {(manualIcon || manualIconPreview) ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
                       </span>
-                      {manualIcon && (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setManualIcon("")} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
+                      {(manualIcon || manualIconPreview) && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { setManualIcon(""); setManualIconFile(null); setManualIconPreview(""); }} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
                           <X className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
                     {showIconPicker && (
-                      <div className="grid grid-cols-10 gap-1 p-3 bg-gray-50 rounded-lg border max-h-48 overflow-y-auto">
-                        {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => { setManualIcon(emoji); setShowIconPicker(false); }}
-                            className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
-                          >
-                            {emoji}
+                      <div className="bg-gray-50 rounded-lg border p-3 space-y-2">
+                        <div className="flex gap-1 border-b pb-2">
+                          <button type="button" onClick={() => setIconPickerTab("emoji")} className={`px-3 py-1 text-sm rounded-md transition-colors ${iconPickerTab === "emoji" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-100"}`}>
+                            이모지
                           </button>
-                        ))}
+                          <button type="button" onClick={() => setIconPickerTab("image")} className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center gap-1 ${iconPickerTab === "image" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-100"}`}>
+                            <ImagePlus className="h-3.5 w-3.5" />
+                            이미지
+                          </button>
+                        </div>
+                        {iconPickerTab === "emoji" ? (
+                          <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
+                            {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => { setManualIcon(emoji); setManualIconFile(null); setManualIconPreview(""); setShowIconPicker(false); }}
+                                className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                              <ImagePlus className="h-8 w-8 text-gray-400 mb-1" />
+                              <span className="text-sm text-gray-500">이미지 파일 선택</span>
+                              <span className="text-xs text-gray-400">JPG, PNG, GIF, SVG</span>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) {
+                                    setManualIconFile(f);
+                                    setManualIcon("");
+                                    setManualIconPreview(URL.createObjectURL(f));
+                                    setShowIconPicker(false);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -773,7 +823,11 @@ export default function AdminDashboard() {
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline flex items-center gap-2"
                             >
-                              {manual.icon && <span className="text-lg">{manual.icon}</span>}
+                              {manual.icon?.startsWith("/uploads") ? (
+                                <img src={manual.icon} alt="" className="w-6 h-6 object-cover rounded" />
+                              ) : manual.icon ? (
+                                <span className="text-lg">{manual.icon}</span>
+                              ) : null}
                               {manual.title}
                             </a>
                           </TableCell>
@@ -1080,31 +1134,74 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setShowIconPicker(!showIconPicker)}
-                    className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white"
+                    className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-2xl transition-colors bg-white overflow-hidden"
                   >
-                    {editManualIcon || <FileText className="h-5 w-5 text-gray-400" />}
+                    {editManualIconPreview ? (
+                      <img src={editManualIconPreview} alt="icon" className="w-full h-full object-cover rounded-md" />
+                    ) : editManualIcon?.startsWith("/uploads") ? (
+                      <img src={editManualIcon} alt="icon" className="w-full h-full object-cover rounded-md" />
+                    ) : editManualIcon ? (
+                      editManualIcon
+                    ) : (
+                      <FileText className="h-5 w-5 text-gray-400" />
+                    )}
                   </button>
                   <span className="text-sm text-gray-500">
-                    {editManualIcon ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
+                    {(editManualIcon || editManualIconPreview) ? "클릭하여 변경" : "클릭하여 아이콘 선택"}
                   </span>
-                  {editManualIcon && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setEditManualIcon("")} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
+                  {(editManualIcon || editManualIconPreview) && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setEditManualIcon(""); setEditManualIconFile(null); setEditManualIconPreview(""); }} className="text-gray-400 hover:text-gray-600 h-7 w-7 p-0">
                       <X className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 {showIconPicker && (
-                  <div className="grid grid-cols-10 gap-1 p-3 bg-gray-50 rounded-lg border max-h-48 overflow-y-auto">
-                    {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => { setEditManualIcon(emoji); setShowIconPicker(false); }}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
-                      >
-                        {emoji}
+                  <div className="bg-gray-50 rounded-lg border p-3 space-y-2">
+                    <div className="flex gap-1 border-b pb-2">
+                      <button type="button" onClick={() => setIconPickerTab("emoji")} className={`px-3 py-1 text-sm rounded-md transition-colors ${iconPickerTab === "emoji" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-100"}`}>
+                        이모지
                       </button>
-                    ))}
+                      <button type="button" onClick={() => setIconPickerTab("image")} className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center gap-1 ${iconPickerTab === "image" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-100"}`}>
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        이미지
+                      </button>
+                    </div>
+                    {iconPickerTab === "emoji" ? (
+                      <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
+                        {["📄","📋","📑","📊","📈","📉","📝","📎","📌","📍","🔖","📁","📂","🗂️","🗄️","💼","🏢","🏗️","🔧","🔨","⚙️","🛠️","🔩","💡","🔑","🔒","🔓","🛡️","⚠️","✅","❌","❓","❗","💬","📞","📧","📩","📤","📥","🖨️","🖥️","💻","📱","🌐","🔗","📡","🏠","🚀","⭐","🎯","🎓","📚","📖","🧾","💰","💳","🏦","📆","⏰","🔔","🗓️","📏","📐","✏️","🖊️","🖋️","🔍","🔎","👥","👤","🤝","💪","🎉","🏆","🔥","💎","🌟","✨","💫","🌈"].map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => { setEditManualIcon(emoji); setEditManualIconFile(null); setEditManualIconPreview(""); setShowIconPicker(false); }}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-blue-100 rounded text-lg transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                          <ImagePlus className="h-8 w-8 text-gray-400 mb-1" />
+                          <span className="text-sm text-gray-500">이미지 파일 선택</span>
+                          <span className="text-xs text-gray-400">JPG, PNG, GIF, SVG</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                setEditManualIconFile(f);
+                                setEditManualIcon("");
+                                setEditManualIconPreview(URL.createObjectURL(f));
+                                setShowIconPicker(false);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
