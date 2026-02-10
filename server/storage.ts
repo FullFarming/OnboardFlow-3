@@ -1,4 +1,4 @@
-import { employees, contentIcons, admins, contentImages, userProgress, departments, manuals, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress, type Department, type InsertDepartment, type Manual, type InsertManual } from "@shared/schema";
+import { employees, contentIcons, admins, contentImages, userProgress, departments, manuals, manualLinks, type Employee, type InsertEmployee, type ContentIcon, type InsertContentIcon, type Admin, type InsertAdmin, type ContentImage, type InsertContentImage, type UserProgress, type InsertUserProgress, type Department, type InsertDepartment, type Manual, type InsertManual, type ManualLink, type InsertManualLink } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc, and, sql, desc, ilike, or } from "drizzle-orm";
 import session from "express-session";
@@ -54,6 +54,12 @@ export interface IStorage {
   updateManual(id: string, manual: Partial<InsertManual>): Promise<Manual>;
   deleteManual(id: string): Promise<void>;
   incrementManualViewCount(id: string): Promise<void>;
+  
+  // Manual Link methods
+  getManualLinks(sourceManualId: string): Promise<ManualLink[]>;
+  createManualLink(link: InsertManualLink): Promise<ManualLink>;
+  deleteManualLink(id: string): Promise<void>;
+  getAllManualLinks(): Promise<ManualLink[]>;
   
   sessionStore: session.Store;
 }
@@ -399,6 +405,24 @@ export class DatabaseStorage implements IStorage {
     await db.update(manuals)
       .set({ viewCount: sql`${manuals.viewCount} + 1` })
       .where(eq(manuals.id, id));
+  }
+
+  async getManualLinks(sourceManualId: string): Promise<ManualLink[]> {
+    return await db.select().from(manualLinks)
+      .where(eq(manualLinks.sourceManualId, sourceManualId));
+  }
+
+  async createManualLink(link: InsertManualLink): Promise<ManualLink> {
+    const [created] = await db.insert(manualLinks).values(link).returning();
+    return created;
+  }
+
+  async deleteManualLink(id: string): Promise<void> {
+    await db.delete(manualLinks).where(eq(manualLinks.id, id));
+  }
+
+  async getAllManualLinks(): Promise<ManualLink[]> {
+    return await db.select().from(manualLinks);
   }
 }
 
