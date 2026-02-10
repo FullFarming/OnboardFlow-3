@@ -258,8 +258,8 @@ export default function ManualLibrary() {
         onClose={() => setSelectedManual(null)}
       />
 
-      <FloatingChatButton onClick={() => setIsChatOpen(true)} />
-      <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {/* <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+      <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} /> */}
     </div>
   );
 }
