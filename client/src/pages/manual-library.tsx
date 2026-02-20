@@ -52,10 +52,11 @@ export default function ManualLibrary() {
     setLocation("/auth");
   };
 
-  const handleManualClick = async (manual: Manual) => {
-    await fetch(`/api/manuals/${manual.id}/view`, { method: "POST" });
-    queryClient.invalidateQueries({ queryKey: ["/api/manuals", selectedDepartment, searchTerm] });
+  const handleManualClick = (manual: Manual) => {
     setSelectedManual(manual);
+    fetch(`/api/manuals/${manual.id}/view`, { method: "POST" })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["/api/manuals", selectedDepartment, searchTerm] }))
+      .catch(() => {});
   };
 
   const getDepartmentById = (id: string) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Link2, Maximize2, Minimize2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Link2, Maximize2, Minimize2, BookCheck } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -52,6 +52,7 @@ export default function PDFViewerModal({
   const [linkedManuals, setLinkedManuals] = useState<LinkedManualInfo[]>([]);
   const [showLinkedPanel, setShowLinkedPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReadingComplete, setIsReadingComplete] = useState(false);
   const renderingRef = useRef<Set<number>>(new Set());
   const baseScaleRef = useRef(1);
 
@@ -60,6 +61,7 @@ export default function PDFViewerModal({
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      setIsReadingComplete(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -87,6 +89,7 @@ export default function PDFViewerModal({
         setError(null);
         setCurrentPage(1);
         setRenderedPages(new Set());
+        setIsReadingComplete(false);
         renderingRef.current = new Set();
         canvasRefs.current = new Map();
 
@@ -158,6 +161,13 @@ export default function PDFViewerModal({
     renderingRef.current = new Set();
   }, [scale]);
 
+  // For single-page PDFs, mark reading complete once loaded
+  useEffect(() => {
+    if (totalPages === 1 && !loading && !error) {
+      setIsReadingComplete(true);
+    }
+  }, [totalPages, loading, error]);
+
   useEffect(() => {
     if (!pdfDoc || loading) return;
 
@@ -195,6 +205,12 @@ export default function PDFViewerModal({
       });
 
       setCurrentPage(closestPage);
+
+      // Mark reading complete when scrolled near the bottom
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      if (scrollTop + clientHeight >= scrollHeight - 150) {
+        setIsReadingComplete(true);
+      }
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
@@ -331,6 +347,49 @@ export default function PDFViewerModal({
                 style={{ maxWidth: '100%' }}
               />
             ))}
+
+            {/* Linked manuals section shown after reading completion */}
+            {isReadingComplete && linkedManuals.length > 0 && (
+              <div className="w-full mt-4 mb-2">
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookCheck className="w-4 h-4 text-purple-600" />
+                    <h3 className="text-sm font-semibold text-purple-800">연계 매뉴얼</h3>
+                    <span className="text-xs text-purple-400 ml-auto">{linkedManuals.length}개</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {linkedManuals.map((link) => (
+                      <button
+                        key={link.id}
+                        onClick={() => {
+                          if (onOpenLinkedManual) {
+                            onOpenLinkedManual({
+                              id: link.linkedManual.id,
+                              title: link.linkedManual.title,
+                              fileUrl: link.linkedManual.fileUrl,
+                            });
+                          }
+                        }}
+                        className="flex items-center gap-3 p-3 bg-white border border-purple-200 rounded-lg text-left hover:bg-purple-100 transition-colors shadow-sm"
+                      >
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Link2 className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{link.linkedManual.title}</p>
+                          {link.linkedManual.hashtags && link.linkedManual.hashtags.length > 0 && (
+                            <p className="text-xs text-gray-400 truncate">
+                              {link.linkedManual.hashtags.slice(0, 2).map((t) => `#${t}`).join(' ')}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
