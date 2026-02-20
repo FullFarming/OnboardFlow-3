@@ -129,6 +129,7 @@ export const manuals = pgTable("manuals", {
   hashtags: text("hashtags").array().default([]),
   viewCount: integer("view_count").default(0),
   isActive: boolean("is_active").default(true),
+  detailRoute: text("detail_route"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -154,6 +155,7 @@ export const insertManualSchema = createInsertSchema(manuals).pick({
   fileSize: true,
   icon: true,
   hashtags: true,
+  detailRoute: true,
 });
 
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
