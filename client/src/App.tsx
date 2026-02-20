@@ -11,6 +11,7 @@ import HomePage from "@/pages/home-page";
 import AdminDashboard from "@/pages/admin-dashboard";
 import UserDashboard from "@/pages/user-dashboard";
 import ManualLibrary from "@/pages/manual-library";
+import CanteenTeamsDetail from "@/pages/canteen-teams-detail";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <ProtectedRoute path="/admin" component={AdminDashboard} />
       <Route path="/dashboard" component={UserDashboard} />
       <Route path="/manual-library" component={ManualLibrary} />
+      <Route path="/manual/canteen-teams-room" component={CanteenTeamsDetail} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

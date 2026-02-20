@@ -524,7 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/manuals", manualUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'iconFile', maxCount: 1 }]), async (req, res) => {
     try {
-      const { title, departmentId, hashtags, icon } = req.body;
+      const { title, departmentId, hashtags, icon, detailRoute } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const file = files?.file?.[0];
       const iconFile = files?.iconFile?.[0];
@@ -565,6 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: file.size,
         icon: iconValue,
         hashtags: hashtagArray,
+        detailRoute: detailRoute || null,
       });
 
       res.status(201).json(manual);
@@ -577,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/manuals/:id", manualUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'iconFile', maxCount: 1 }]), async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, departmentId, hashtags, icon } = req.body;
+      const { title, departmentId, hashtags, icon, detailRoute } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const file = files?.file?.[0];
       const iconFile = files?.iconFile?.[0];
@@ -586,6 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (title) updateData.title = title;
       if (departmentId) updateData.departmentId = departmentId;
       if (icon !== undefined) updateData.icon = icon || null;
+      if (detailRoute !== undefined) updateData.detailRoute = detailRoute || null;
       
       if (iconFile) {
         const iconExt = path.extname(iconFile.originalname) || '.png';

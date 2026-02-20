@@ -55,7 +55,11 @@ export default function ManualLibrary() {
   const handleManualClick = async (manual: Manual) => {
     await fetch(`/api/manuals/${manual.id}/view`, { method: "POST" });
     queryClient.invalidateQueries({ queryKey: ["/api/manuals", selectedDepartment, searchTerm] });
-    setSelectedManual(manual);
+    if ((manual as any).detailRoute) {
+      setLocation((manual as any).detailRoute);
+    } else {
+      setSelectedManual(manual);
+    }
   };
 
   const getDepartmentById = (id: string) => {

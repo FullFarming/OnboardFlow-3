@@ -775,6 +775,15 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
+                  <div className="relative">
+                    <Input
+                      name="detailRoute"
+                      className="form-input peer"
+                      placeholder=""
+                    />
+                    <Label className="form-label">커스텀 상세 페이지 경로 (선택, 예: /manual/canteen-teams-room)</Label>
+                  </div>
+
                   <Button
                     type="submit"
                     className="bg-brand-navy hover:bg-blue-800 text-white"
@@ -1291,6 +1300,16 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="relative">
+                <Input
+                  name="detailRoute"
+                  defaultValue={(editingManual as any).detailRoute || ""}
+                  className="form-input peer"
+                  placeholder=""
+                />
+                <Label className="form-label">커스텀 상세 페이지 경로 (선택, 예: /manual/canteen-teams-room)</Label>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
